@@ -1,17 +1,17 @@
 import { act, renderHook } from '@testing-library/react-native';
-import * as SecureStore from 'expo-secure-store';
 import { useAuthStore } from '../store/authStore';
 import { authApi } from '../api/auth';
 import { UnauthorizedError } from '../api/client';
+import * as sessionStorage from '../lib/sessionStorage';
 
-jest.mock('expo-secure-store');
 jest.mock('../api/auth');
+jest.mock('../lib/sessionStorage');
 jest.mock('../api/client', () => ({
   ...jest.requireActual('../api/client'),
   request: jest.fn(),
 }));
 
-const mockSecureStore = SecureStore as jest.Mocked<typeof SecureStore>;
+const mockSessionStorage = sessionStorage as jest.Mocked<typeof sessionStorage>;
 const mockAuthApi = authApi as jest.Mocked<typeof authApi>;
 
 const MOCK_USER = { id: 1, email: 'test@example.com', full_name: 'Test User', is_active: true, is_verified: true };
@@ -29,7 +29,7 @@ beforeEach(() => {
 
 describe('authStore.hydrate', () => {
   it('sets unauthenticated when no token stored', async () => {
-    mockSecureStore.getItemAsync.mockResolvedValue(null);
+    mockSessionStorage.getSessionItem.mockResolvedValue(null);
 
     const { result } = renderHook(() => useAuthStore());
     await act(() => result.current.hydrate());
@@ -40,7 +40,7 @@ describe('authStore.hydrate', () => {
   });
 
   it('fetches user and sets authenticated when token exists', async () => {
-    mockSecureStore.getItemAsync.mockResolvedValue('stored-token');
+    mockSessionStorage.getSessionItem.mockResolvedValue('stored-token');
     mockAuthApi.me.mockResolvedValue(MOCK_USER);
 
     const { result } = renderHook(() => useAuthStore());
@@ -52,7 +52,7 @@ describe('authStore.hydrate', () => {
   });
 
   it('attempts refresh on 401 then sets user if refresh succeeds', async () => {
-    mockSecureStore.getItemAsync
+    mockSessionStorage.getSessionItem
       .mockResolvedValueOnce('old-access-token') // access_token check
       .mockResolvedValueOnce('refresh-token');   // refresh_token check in refreshToken()
     mockAuthApi.me
@@ -68,7 +68,7 @@ describe('authStore.hydrate', () => {
   });
 
   it('clears tokens and sets unauthenticated if refresh fails', async () => {
-    mockSecureStore.getItemAsync.mockResolvedValue('expired-token');
+    mockSessionStorage.getSessionItem.mockResolvedValue('expired-token');
     mockAuthApi.me.mockRejectedValue(new UnauthorizedError());
     mockAuthApi.refresh.mockRejectedValue(new Error('refresh expired'));
 
@@ -76,8 +76,8 @@ describe('authStore.hydrate', () => {
     await act(() => result.current.hydrate());
 
     expect(result.current.isAuthenticated).toBe(false);
-    expect(mockSecureStore.deleteItemAsync).toHaveBeenCalledWith('access_token');
-    expect(mockSecureStore.deleteItemAsync).toHaveBeenCalledWith('refresh_token');
+    expect(mockSessionStorage.deleteSessionItem).toHaveBeenCalledWith('access_token');
+    expect(mockSessionStorage.deleteSessionItem).toHaveBeenCalledWith('refresh_token');
   });
 });
 
@@ -88,8 +88,8 @@ describe('authStore.login', () => {
     const { result } = renderHook(() => useAuthStore());
     await act(() => result.current.login('test@example.com', 'password123'));
 
-    expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith('access_token', 'access-token');
-    expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith('refresh_token', 'refresh-token');
+    expect(mockSessionStorage.setSessionItem).toHaveBeenCalledWith('access_token', 'access-token');
+    expect(mockSessionStorage.setSessionItem).toHaveBeenCalledWith('refresh_token', 'refresh-token');
     expect(result.current.isAuthenticated).toBe(true);
     expect(result.current.user).toEqual(MOCK_AUTH_RESPONSE.user);
   });
@@ -138,8 +138,8 @@ describe('authStore.logout', () => {
     const { result } = renderHook(() => useAuthStore());
     await act(() => result.current.logout());
 
-    expect(mockSecureStore.deleteItemAsync).toHaveBeenCalledWith('access_token');
-    expect(mockSecureStore.deleteItemAsync).toHaveBeenCalledWith('refresh_token');
+    expect(mockSessionStorage.deleteSessionItem).toHaveBeenCalledWith('access_token');
+    expect(mockSessionStorage.deleteSessionItem).toHaveBeenCalledWith('refresh_token');
     expect(result.current.isAuthenticated).toBe(false);
     expect(result.current.user).toBeNull();
   });
@@ -151,14 +151,14 @@ describe('authStore.logout', () => {
     const { result } = renderHook(() => useAuthStore());
     await act(() => result.current.logout());
 
-    expect(mockSecureStore.deleteItemAsync).toHaveBeenCalled();
+    expect(mockSessionStorage.deleteSessionItem).toHaveBeenCalled();
     expect(result.current.isAuthenticated).toBe(false);
   });
 });
 
 describe('authStore.refreshToken', () => {
   it('returns true and saves new token on success', async () => {
-    mockSecureStore.getItemAsync.mockResolvedValue('refresh-token');
+    mockSessionStorage.getSessionItem.mockResolvedValue('refresh-token');
     mockAuthApi.refresh.mockResolvedValue({ access_token: 'new-access' });
 
     const { result } = renderHook(() => useAuthStore());
@@ -168,11 +168,11 @@ describe('authStore.refreshToken', () => {
     });
 
     expect(refreshed).toBe(true);
-    expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith('access_token', 'new-access');
+    expect(mockSessionStorage.setSessionItem).toHaveBeenCalledWith('access_token', 'new-access');
   });
 
   it('returns false when no refresh token stored', async () => {
-    mockSecureStore.getItemAsync.mockResolvedValue(null);
+    mockSessionStorage.getSessionItem.mockResolvedValue(null);
 
     const { result } = renderHook(() => useAuthStore());
     let refreshed: boolean = true;

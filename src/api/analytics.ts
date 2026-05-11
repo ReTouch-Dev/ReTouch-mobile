@@ -1,4 +1,4 @@
-import * as SecureStore from 'expo-secure-store';
+import { getSessionItem } from '../lib/sessionStorage';
 
 const ANALYTICS_BASE = process.env.EXPO_PUBLIC_ANALYTICS_BASE_URL ?? 'http://localhost:5002/analytics';
 
@@ -13,8 +13,7 @@ function analyticsRequest<T>(path: string): Promise<T> {
 
 // We piggyback JWT from the API client for user-scoped analytics
 async function authedAnalyticsRequest<T>(path: string): Promise<T> {
-  // Reuse the token from SecureStore via the base request helper
-  const token = await SecureStore.getItemAsync('access_token');
+  const token = await getSessionItem('access_token');
   const headers: Record<string, string> = token
     ? { Authorization: `Bearer ${token}` }
     : {};

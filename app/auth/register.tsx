@@ -8,7 +8,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
   ScrollView,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
@@ -35,13 +34,21 @@ export default function RegisterScreen() {
   const { register } = useAuthStore();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
+    defaultValues: {
+      full_name: '',
+      email: '',
+      password: '',
+      confirm: '',
+    },
   });
 
   const onSubmit = async (data: FormData) => {
     setLoading(true);
+    setFormError(null);
     try {
       await register(data.email, data.password, data.full_name || undefined);
       router.replace('/(tabs)/receipts');
@@ -51,7 +58,7 @@ export default function RegisterScreen() {
           ? 'An account with this email already exists. Try signing in instead.'
           : err.message
         : 'Registration failed. Please try again.';
-      Alert.alert('Sign up failed', msg);
+      setFormError(msg);
     } finally {
       setLoading(false);
     }
@@ -110,6 +117,8 @@ export default function RegisterScreen() {
               : <Text style={styles.btnText}>Create account</Text>
             }
           </TouchableOpacity>
+
+          {formError ? <Text style={styles.errorBanner}>{formError}</Text> : null}
         </View>
 
         <Link href="/auth/login" style={styles.link}>
@@ -140,6 +149,7 @@ const styles = StyleSheet.create({
   },
   inputError: { borderColor: colors.error },
   errorText: { fontSize: 12, color: colors.error },
+  errorBanner: { fontSize: 13, color: colors.error, textAlign: 'center', marginTop: spacing.xs },
   btn: {
     backgroundColor: colors.primary,
     borderRadius: radius.md,

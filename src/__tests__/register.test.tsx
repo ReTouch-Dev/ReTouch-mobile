@@ -1,6 +1,5 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
-import { Alert } from 'react-native';
 import RegisterScreen from '../../app/auth/register';
 import { useAuthStore } from '../store/authStore';
 import { ApiError } from '../api/client';
@@ -18,7 +17,6 @@ const mockRegister = jest.fn();
 
 beforeEach(() => {
   jest.clearAllMocks();
-  jest.spyOn(Alert, 'alert');
   (useAuthStore as jest.MockedFunction<typeof useAuthStore>).mockReturnValue({
     login: jest.fn(),
     register: mockRegister,
@@ -74,7 +72,7 @@ describe('RegisterScreen', () => {
     });
   });
 
-  it('shows a helpful alert when the email already exists', async () => {
+  it('shows a helpful inline error when the email already exists', async () => {
     mockRegister.mockRejectedValue(new ApiError(400, 'User with this email already exists'));
     render(<RegisterScreen />);
 
@@ -84,10 +82,9 @@ describe('RegisterScreen', () => {
     fireEvent.press(getCreateAccountButton());
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith(
-        'Sign up failed',
-        'An account with this email already exists. Try signing in instead.',
-      );
+      expect(
+        screen.getByText('An account with this email already exists. Try signing in instead.'),
+      ).toBeTruthy();
     });
   });
 });

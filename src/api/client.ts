@@ -1,12 +1,12 @@
 /**
  * Base HTTP client for ReTouch mobile.
  *
- * - Reads access token from SecureStore on every request (no in-memory cache
+ * - Reads access token from session storage on every request (no in-memory cache
  *   so a refreshed token is always used).
  * - Throws UnauthorizedError on 401 so the auth store can trigger logout.
  * - Supports multipart/form-data uploads (pass FormData as body).
  */
-import * as SecureStore from 'expo-secure-store';
+import { getSessionItem } from '../lib/sessionStorage';
 
 export const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:5000';
 
@@ -30,7 +30,7 @@ export class UnauthorizedError extends ApiError {
 
 async function getAuthHeader(): Promise<Record<string, string>> {
   try {
-    const token = await SecureStore.getItemAsync('access_token');
+    const token = await getSessionItem('access_token');
     return token ? { Authorization: `Bearer ${token}` } : {};
   } catch {
     return {};

@@ -1,6 +1,5 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
-import { Alert } from 'react-native';
 import LoginScreen from '../../app/auth/login';
 import { useAuthStore } from '../store/authStore';
 import { ApiError } from '../api/client';
@@ -18,7 +17,6 @@ const mockLogin = jest.fn();
 
 beforeEach(() => {
   jest.clearAllMocks();
-  jest.spyOn(Alert, 'alert');
   (useAuthStore as jest.MockedFunction<typeof useAuthStore>).mockReturnValue({
     login: mockLogin,
     register: jest.fn(),
@@ -76,7 +74,7 @@ describe('LoginScreen', () => {
     });
   });
 
-  it('shows Alert on API error', async () => {
+  it('shows inline error on API error', async () => {
     mockLogin.mockRejectedValue(new ApiError(401, 'Invalid credentials'));
     render(<LoginScreen />);
     fireEvent.changeText(screen.getByPlaceholderText('you@example.com'), 'test@example.com');
@@ -84,7 +82,7 @@ describe('LoginScreen', () => {
     fireEvent.press(screen.getByText('Sign in'));
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith('Login failed', 'Invalid credentials');
+      expect(screen.getByText('Invalid credentials')).toBeTruthy();
     });
   });
 });

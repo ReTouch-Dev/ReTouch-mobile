@@ -1,11 +1,11 @@
 /**
  * Auth state — stored in Zustand.
- * Tokens are persisted to expo-secure-store; state hydrated on app launch.
+ * Tokens are persisted to session storage; state hydrated on app launch.
  */
 import { create } from 'zustand';
-import * as SecureStore from 'expo-secure-store';
 import { authApi, type AuthResponse } from '../api/auth';
 import { ApiError, UnauthorizedError } from '../api/client';
+import { deleteSessionItem, getSessionItem, setSessionItem } from '../lib/sessionStorage';
 
 interface User {
   id: number;
@@ -26,13 +26,13 @@ interface AuthState {
 }
 
 async function saveTokens(access: string, refresh: string) {
-  await SecureStore.setItemAsync('access_token', access);
-  await SecureStore.setItemAsync('refresh_token', refresh);
+  await setSessionItem('access_token', access);
+  await setSessionItem('refresh_token', refresh);
 }
 
 async function clearTokens() {
-  await SecureStore.deleteItemAsync('access_token');
-  await SecureStore.deleteItemAsync('refresh_token');
+  await deleteSessionItem('access_token');
+  await deleteSessionItem('refresh_token');
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -43,7 +43,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   hydrate: async () => {
     set({ isLoading: true });
     try {
-      const token = await SecureStore.getItemAsync('access_token');
+      const token = await getSessionItem('access_token');
       if (!token) {
         set({ isLoading: false, isAuthenticated: false });
         return;
@@ -97,10 +97,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   refreshToken: async () => {
     try {
-      const refresh = await SecureStore.getItemAsync('refresh_token');
+      const refresh = await getSessionItem('refresh_token');
       if (!refresh) return false;
       const res = await authApi.refresh(refresh);
-      await SecureStore.setItemAsync('access_token', res.access_token);
+      await setSessionItem('access_token', res.access_token);
       return true;
     } catch {
       return false;
