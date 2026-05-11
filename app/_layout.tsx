@@ -48,9 +48,12 @@ export default function RootLayout() {
                 name="receipt/[id]"
                 options={{
                   headerShown: true,
-                  title: 'Receipt Detail',
-                  headerStyle: { backgroundColor: colors.bg },
-                  headerTintColor: colors.primary,
+                  title: 'Receipt',
+                  headerStyle: { backgroundColor: colors.surface },
+                  headerTintColor: colors.text1,
+                  headerTitleStyle: { color: colors.text1, fontWeight: '700' },
+                  headerShadowVisible: false,
+                  headerBackTitleVisible: false,
                 }}
               />
             </Stack>

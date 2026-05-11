@@ -5,14 +5,17 @@ import {
   ScrollView,
   ActivityIndicator,
   TouchableOpacity,
+  StatusBar,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { receiptsApi } from '../../src/api/receipts';
 import { colors, spacing, radius, shadow } from '../../src/theme/tokens';
 
-function Row({ label, value }: { label: string; value?: string | null }) {
+function DetailRow({ label, value }: { label: string; value?: string | null }) {
   if (!value) return null;
   return (
     <View style={styles.row}>
@@ -29,7 +32,7 @@ function formatCurrency(v: number | null | undefined) {
 
 export default function ReceiptDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const { data: receipt, isLoading, error, refetch } = useQuery({
     queryKey: ['receipt', id],
@@ -44,6 +47,7 @@ export default function ReceiptDetailScreen() {
   if (isLoading) {
     return (
       <View style={styles.center}>
+        <StatusBar barStyle="light-content" />
         <ActivityIndicator color={colors.primary} size="large" />
       </View>
     );
@@ -52,6 +56,8 @@ export default function ReceiptDetailScreen() {
   if (error || !receipt) {
     return (
       <View style={styles.center}>
+        <StatusBar barStyle="light-content" />
+        <Ionicons name="alert-circle-outline" size={40} color={colors.error} />
         <Text style={styles.errText}>Failed to load receipt</Text>
         <TouchableOpacity onPress={() => refetch()} style={styles.retryBtn}>
           <Text style={styles.retryText}>Retry</Text>
@@ -63,7 +69,13 @@ export default function ReceiptDetailScreen() {
   const isPending = receipt.ocr_status === 'processing' || receipt.ocr_status == null;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing['4xl'] }]}
+      showsVerticalScrollIndicator={false}
+    >
+      <StatusBar barStyle="light-content" backgroundColor={colors.surface} />
+
       {/* Receipt image */}
       {receipt.image_url && (
         <View style={styles.imageWrap}>
@@ -71,7 +83,7 @@ export default function ReceiptDetailScreen() {
             source={{ uri: receipt.image_url }}
             style={styles.image}
             contentFit="contain"
-            transition={200}
+            transition={300}
           />
         </View>
       )}
@@ -92,21 +104,22 @@ export default function ReceiptDetailScreen() {
             <Text style={styles.merchantAddr}>{receipt.merchant_address}</Text>
           )}
           {receipt.total != null && (
-            <Text style={styles.total}>{formatCurrency(receipt.total)}</Text>
+            <Text style={styles.totalAmount}>{formatCurrency(receipt.total)}</Text>
           )}
         </View>
       )}
 
-      {/* Receipt details */}
+      {/* Details */}
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Details</Text>
-        <Row label="Date" value={receipt.transaction_date} />
-        <Row label="Time" value={receipt.transaction_time} />
-        <Row label="Category" value={receipt.category} />
-        <Row label="Payment" value={receipt.payment_method} />
-        <Row label="Subtotal" value={formatCurrency(receipt.subtotal)} />
-        <Row label="Tax" value={formatCurrency(receipt.tax)} />
-        <Row label="Total" value={formatCurrency(receipt.total)} />
+        <DetailRow label="Date" value={receipt.transaction_date} />
+        <DetailRow label="Time" value={receipt.transaction_time} />
+        <DetailRow label="Category" value={receipt.category} />
+        <DetailRow label="Payment" value={receipt.payment_method} />
+        <View style={styles.rowDivider} />
+        <DetailRow label="Subtotal" value={formatCurrency(receipt.subtotal)} />
+        <DetailRow label="Tax" value={formatCurrency(receipt.tax)} />
+        <DetailRow label="Total" value={formatCurrency(receipt.total)} />
       </View>
 
       {/* Line items */}
@@ -128,32 +141,86 @@ export default function ReceiptDetailScreen() {
           ))}
         </View>
       )}
+
+      {/* Confidence */}
+      {receipt.ocr_confidence != null && (
+        <View style={styles.confidenceRow}>
+          <Ionicons name="sparkles-outline" size={12} color={colors.text3} />
+          <Text style={styles.confidenceText}>
+            OCR confidence: {(receipt.ocr_confidence * 100).toFixed(0)}%
+          </Text>
+        </View>
+      )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.xl, paddingBottom: spacing['4xl'], gap: spacing.lg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  imageWrap: { backgroundColor: colors.white, borderRadius: radius.xl, overflow: 'hidden', height: 280, ...shadow.md },
+  content: { padding: spacing.xl, gap: spacing.md },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, backgroundColor: colors.bg, gap: spacing.md },
+  imageWrap: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    overflow: 'hidden',
+    height: 280,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow.md,
+  },
   image: { width: '100%', height: '100%' },
-  processingBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.primaryLight, borderRadius: radius.md, padding: spacing.md },
+  processingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.primaryLight,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.primary + '33',
+  },
   processingText: { color: colors.primary, fontSize: 13, fontWeight: '600' },
-  card: { backgroundColor: colors.white, borderRadius: radius.lg, padding: spacing.lg, ...shadow.sm, gap: spacing.sm },
-  merchantName: { fontSize: 20, fontWeight: '700', color: colors.text1 },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow.sm,
+  },
+  merchantName: { fontSize: 20, fontWeight: '800', color: colors.text1, letterSpacing: -0.3 },
   merchantAddr: { fontSize: 12, color: colors.text2 },
-  total: { fontSize: 28, fontWeight: '700', color: colors.primary, marginTop: spacing.sm },
-  sectionTitle: { fontSize: 12, fontWeight: '700', color: colors.text3, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: spacing.xs },
-  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.xs },
+  totalAmount: { fontSize: 32, fontWeight: '800', color: colors.primary, marginTop: spacing.xs, letterSpacing: -1 },
+  sectionTitle: { fontSize: 11, fontWeight: '700', color: colors.text3, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: spacing.xs },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.xs },
   rowLabel: { fontSize: 13, color: colors.text2 },
   rowValue: { fontSize: 13, fontWeight: '600', color: colors.text1 },
-  lineItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: spacing.xs },
+  rowDivider: { height: 1, backgroundColor: colors.divider, marginVertical: spacing.xs },
+  lineItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingVertical: spacing.xs,
+  },
   lineItemLeft: { flex: 1, gap: 2 },
   lineItemName: { fontSize: 13, color: colors.text1 },
   lineItemQty: { fontSize: 11, color: colors.text3 },
   lineItemPrice: { fontSize: 13, fontWeight: '600', color: colors.text1, fontVariant: ['tabular-nums'] },
-  errText: { color: colors.error, fontSize: 14 },
-  retryBtn: { marginTop: spacing.md, backgroundColor: colors.primary, borderRadius: radius.sm, paddingVertical: spacing.sm, paddingHorizontal: spacing.xl },
-  retryText: { color: colors.white, fontWeight: '600', fontSize: 13 },
+  confidenceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  confidenceText: { color: colors.text3, fontSize: 11 },
+  errText: { color: colors.error, fontSize: 14, textAlign: 'center' },
+  retryBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xl,
+  },
+  retryText: { color: colors.bg, fontWeight: '700', fontSize: 13 },
 });

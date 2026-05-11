@@ -9,7 +9,12 @@ import * as ImagePicker from 'expo-image-picker';
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn() }),
 }));
-
+jest.mock('@expo/vector-icons', () => ({
+  Ionicons: () => null,
+}));
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
 jest.mock('expo-image-picker');
 jest.mock('../api/receipts');
 
@@ -100,7 +105,7 @@ describe('CaptureScreen', () => {
     await act(() => fireEvent.press(screen.getByText('Upload receipt')));
 
     await waitFor(() => {
-      expect(screen.getByText('Uploaded! OCR is processing…')).toBeTruthy();
+      expect(screen.getByText('Uploaded! Extracting data…')).toBeTruthy();
     });
   });
 

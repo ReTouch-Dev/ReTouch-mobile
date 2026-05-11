@@ -7,8 +7,14 @@ import { receiptsApi, type ReceiptListResponse } from '../api/receipts';
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn() }),
 }));
-
+jest.mock('@expo/vector-icons', () => ({
+  Ionicons: () => null,
+}));
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
 jest.mock('../api/receipts');
+
 const mockReceiptsApi = receiptsApi as jest.Mocked<typeof receiptsApi>;
 
 function makeWrapper() {
@@ -58,7 +64,7 @@ describe('ReceiptsScreen', () => {
   it('renders search input', async () => {
     mockReceiptsApi.list.mockResolvedValue(EMPTY_LIST);
     render(<ReceiptsScreen />, { wrapper: makeWrapper() });
-    expect(screen.getByPlaceholderText('Search merchant or date…')).toBeTruthy();
+    expect(screen.getByPlaceholderText('Search by merchant…')).toBeTruthy();
   });
 
   it('renders receipt list when data loads', async () => {
@@ -89,7 +95,7 @@ describe('ReceiptsScreen', () => {
     });
   });
 
-  it('shows Processing text for pending receipts', async () => {
+  it('shows Processing badge for pending receipts', async () => {
     const pending = {
       ...MOCK_RECEIPT,
       upload_status: 'processing',
@@ -104,7 +110,7 @@ describe('ReceiptsScreen', () => {
 
     render(<ReceiptsScreen />, { wrapper: makeWrapper() });
     await waitFor(() => {
-      expect(screen.getByText('Processing…')).toBeTruthy();
+      expect(screen.getByText('Processing')).toBeTruthy();
     });
   });
 
@@ -113,7 +119,7 @@ describe('ReceiptsScreen', () => {
 
     render(<ReceiptsScreen />, { wrapper: makeWrapper() });
     await waitFor(() => {
-      expect(screen.getByText('No receipts yet. Tap Scan to add one.')).toBeTruthy();
+      expect(screen.getByText('No receipts yet')).toBeTruthy();
     });
   });
 
@@ -130,7 +136,7 @@ describe('ReceiptsScreen', () => {
     mockReceiptsApi.list.mockResolvedValue(EMPTY_LIST);
 
     render(<ReceiptsScreen />, { wrapper: makeWrapper() });
-    const searchInput = screen.getByPlaceholderText('Search merchant or date…');
+    const searchInput = screen.getByPlaceholderText('Search by merchant…');
     fireEvent.changeText(searchInput, 'coffee');
 
     await waitFor(() => {

@@ -62,7 +62,7 @@ export interface CategoryItem {
   receipt_count: number;
   total_spent: number;
   percentage: number;
-  merchants: string[];
+  top_merchants: string[];
 }
 
 export interface CategoryBreakdownResponse {

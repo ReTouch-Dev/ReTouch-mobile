@@ -8,14 +8,17 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  StatusBar,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { colors, spacing, radius, fonts } from '../../src/theme/tokens';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors, spacing, radius } from '../../src/theme/tokens';
 import { useAuthStore } from '../../src/store/authStore';
 import { ApiError } from '../../src/api/client';
+import { Logo } from '../../src/components/Logo';
 
 const schema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -27,15 +30,13 @@ type FormData = z.infer<typeof schema>;
 export default function LoginScreen() {
   const { login } = useAuthStore();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      email: '',
-      password: '',
-    },
+    defaultValues: { email: '', password: '' },
   });
 
   const onSubmit = async (data: FormData) => {
@@ -54,19 +55,25 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { paddingTop: insets.top }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.inner}>
-        <Text style={styles.logo}>ReTouch</Text>
-        <Text style={styles.subtitle}>Your receipt wallet</Text>
+      <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
 
+      <View style={styles.inner}>
+        {/* Logo */}
+        <View style={styles.logoArea}>
+          <Logo size="lg" />
+          <Text style={styles.tagline}>Your smart receipt wallet</Text>
+        </View>
+
+        {/* Form */}
         <View style={styles.form}>
           <Controller
             control={control}
             name="email"
             render={({ field: { onChange, onBlur, value } }) => (
-              <View style={styles.fieldGroup}>
+              <View style={styles.field}>
                 <Text style={styles.label}>Email</Text>
                 <TextInput
                   style={[styles.input, errors.email && styles.inputError]}
@@ -88,7 +95,7 @@ export default function LoginScreen() {
             control={control}
             name="password"
             render={({ field: { onChange, onBlur, value } }) => (
-              <View style={styles.fieldGroup}>
+              <View style={styles.field}>
                 <Text style={styles.label}>Password</Text>
                 <TextInput
                   style={[styles.input, errors.password && styles.inputError]}
@@ -105,58 +112,130 @@ export default function LoginScreen() {
             )}
           />
 
+          {formError ? (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorBannerText}>{formError}</Text>
+            </View>
+          ) : null}
+
           <TouchableOpacity
             style={[styles.btn, loading && styles.btnDisabled]}
             onPress={handleSubmit(onSubmit)}
             disabled={loading}
+            activeOpacity={0.8}
           >
             {loading
-              ? <ActivityIndicator color={colors.white} />
+              ? <ActivityIndicator color={colors.bg} />
               : <Text style={styles.btnText}>Sign in</Text>
             }
           </TouchableOpacity>
-
-          {formError ? <Text style={styles.errorBanner}>{formError}</Text> : null}
         </View>
 
-        <Link href="/auth/register" style={styles.link}>
-          Don't have an account? <Text style={styles.linkBold}>Sign up</Text>
-        </Link>
+        {/* Footer */}
+        <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.lg }]}>
+          <Text style={styles.footerText}>Don't have an account? </Text>
+          <Link href="/auth/register" asChild>
+            <TouchableOpacity>
+              <Text style={styles.footerLink}>Sign up</Text>
+            </TouchableOpacity>
+          </Link>
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  inner: { flex: 1, justifyContent: 'center', paddingHorizontal: spacing['2xl'], gap: spacing.lg },
-  logo: { fontSize: 32, fontWeight: '700', color: colors.primary, textAlign: 'center' },
-  subtitle: { fontSize: 15, color: colors.text2, textAlign: 'center', marginTop: -spacing.md },
-  form: { gap: spacing.md, marginTop: spacing.xl },
-  fieldGroup: { gap: spacing.xs },
-  label: { fontSize: 13, fontWeight: '600', color: colors.text2 },
+  container: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  inner: {
+    flex: 1,
+    paddingHorizontal: spacing['2xl'],
+    justifyContent: 'center',
+    gap: spacing.xl,
+  },
+  logoArea: {
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  tagline: {
+    fontSize: 14,
+    color: colors.text2,
+    letterSpacing: 0.2,
+  },
+  form: {
+    gap: spacing.lg,
+  },
+  field: {
+    gap: spacing.xs,
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   input: {
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.md,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.md + 2,
     paddingHorizontal: spacing.lg,
     fontSize: 15,
     color: colors.text1,
-    backgroundColor: colors.white,
   },
-  inputError: { borderColor: colors.error },
-  errorText: { fontSize: 12, color: colors.error },
-  errorBanner: { fontSize: 13, color: colors.error, textAlign: 'center', marginTop: spacing.xs },
+  inputError: {
+    borderColor: colors.error,
+  },
+  errorText: {
+    fontSize: 12,
+    color: colors.error,
+  },
+  errorBanner: {
+    backgroundColor: colors.error + '22',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.error + '44',
+  },
+  errorBannerText: {
+    color: colors.error,
+    fontSize: 13,
+    textAlign: 'center',
+  },
   btn: {
     backgroundColor: colors.primary,
     borderRadius: radius.md,
-    paddingVertical: spacing.md + 2,
+    paddingVertical: spacing.md + 4,
     alignItems: 'center',
     marginTop: spacing.sm,
   },
-  btnDisabled: { opacity: 0.6 },
-  btnText: { color: colors.white, fontWeight: '700', fontSize: 15 },
-  link: { textAlign: 'center', color: colors.text2, fontSize: 13, marginTop: spacing.lg },
-  linkBold: { color: colors.primary, fontWeight: '700' },
+  btnDisabled: {
+    opacity: 0.5,
+  },
+  btnText: {
+    color: colors.bg,
+    fontWeight: '700',
+    fontSize: 15,
+    letterSpacing: 0.3,
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  footerText: {
+    color: colors.text2,
+    fontSize: 14,
+  },
+  footerLink: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '700',
+  },
 });

@@ -8,9 +8,20 @@ const mockReplace = jest.fn();
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn(), replace: mockReplace }),
-  Link: ({ children }: { children: React.ReactNode }) => children,
+  Link: ({ children, asChild }: { children: React.ReactNode; asChild?: boolean }) => children,
 }));
-
+jest.mock('@expo/vector-icons', () => ({
+  Ionicons: () => null,
+}));
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
+jest.mock('react-native-svg', () => ({
+  __esModule: true,
+  default: () => null,
+  Rect: () => null,
+  Path: () => null,
+}));
 jest.mock('../store/authStore');
 
 const mockLogin = jest.fn();
@@ -61,7 +72,7 @@ describe('LoginScreen', () => {
     expect(mockLogin).not.toHaveBeenCalled();
   });
 
-  it('calls login with valid credentials', async () => {
+  it('calls login and navigates on valid credentials', async () => {
     mockLogin.mockResolvedValue(undefined);
     render(<LoginScreen />);
     fireEvent.changeText(screen.getByPlaceholderText('you@example.com'), 'test@example.com');

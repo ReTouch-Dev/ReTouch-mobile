@@ -1,7 +1,3 @@
-/**
- * Receipt capture screen — lets users pick from gallery or take a photo,
- * then uploads to the server and polls for OCR status.
- */
 import { useState } from 'react';
 import {
   View,
@@ -11,9 +7,12 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  StatusBar,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { colors, spacing, radius, shadow } from '../../src/theme/tokens';
 import { receiptsApi } from '../../src/api/receipts';
@@ -26,6 +25,7 @@ export default function CaptureScreen() {
   const [state, setState] = useState<State>('idle');
   const [errorMsg, setErrorMsg] = useState('');
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
 
   const pickFromGallery = async () => {
@@ -37,7 +37,6 @@ export default function CaptureScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.9,
-      allowsEditing: false,
     });
     if (!result.canceled && result.assets[0]) {
       setImageUri(result.assets[0].uri);
@@ -51,10 +50,7 @@ export default function CaptureScreen() {
       Alert.alert('Permission needed', 'Please allow camera access.');
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({
-      quality: 0.9,
-      allowsEditing: false,
-    });
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.9 });
     if (!result.canceled && result.assets[0]) {
       setImageUri(result.assets[0].uri);
       setState('idle');
@@ -70,9 +66,7 @@ export default function CaptureScreen() {
       const response = await receiptsApi.upload(imageUri, mimeType);
       await queryClient.invalidateQueries({ queryKey: ['receipts'] });
       setState('success');
-      setTimeout(() => {
-        router.push(`/receipt/${response.receipt_id}`);
-      }, 800);
+      setTimeout(() => router.push(`/receipt/${response.receipt_id}`), 800);
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Upload failed. Please try again.';
       setErrorMsg(msg);
@@ -87,52 +81,70 @@ export default function CaptureScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
+
       <View style={styles.header}>
         <Text style={styles.title}>Scan Receipt</Text>
+        <Text style={styles.subtitle}>Camera or gallery — we'll extract the data</Text>
       </View>
 
       <View style={styles.body}>
         {imageUri ? (
           <View style={styles.previewWrap}>
             <Image source={{ uri: imageUri }} style={styles.preview} resizeMode="contain" />
+            {state !== 'uploading' && state !== 'success' && (
+              <TouchableOpacity style={styles.clearBtn} onPress={reset}>
+                <Ionicons name="close-circle" size={28} color={colors.text1} />
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           <View style={styles.placeholder}>
-            <Text style={styles.placeholderText}>No image selected</Text>
+            <Ionicons name="receipt-outline" size={52} color={colors.text3} />
+            <Text style={styles.placeholderTitle}>No image selected</Text>
+            <Text style={styles.placeholderSub}>Take a photo or choose from gallery</Text>
           </View>
         )}
 
-        <View style={styles.btnRow}>
-          <TouchableOpacity style={[styles.btn, styles.outlineBtn]} onPress={takePhoto} disabled={state === 'uploading'}>
-            <Text style={styles.outlineBtnText}>Camera</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.btn, styles.outlineBtn]} onPress={pickFromGallery} disabled={state === 'uploading'}>
-            <Text style={styles.outlineBtnText}>Gallery</Text>
-          </TouchableOpacity>
-        </View>
+        {/* Action buttons */}
+        {state !== 'uploading' && state !== 'success' && (
+          <View style={styles.btnRow}>
+            <TouchableOpacity style={styles.sourceBtn} onPress={takePhoto} activeOpacity={0.75}>
+              <Ionicons name="camera" size={22} color={colors.primary} />
+              <Text style={styles.sourceBtnText}>Camera</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.sourceBtn} onPress={pickFromGallery} activeOpacity={0.75}>
+              <Ionicons name="images" size={22} color={colors.primary} />
+              <Text style={styles.sourceBtnText}>Gallery</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-        {imageUri && state !== 'success' && (
-          <TouchableOpacity
-            style={[styles.btn, styles.primaryBtn, state === 'uploading' && styles.disabled]}
-            onPress={upload}
-            disabled={state === 'uploading'}
-          >
-            {state === 'uploading'
-              ? <ActivityIndicator color={colors.white} />
-              : <Text style={styles.primaryBtnText}>Upload receipt</Text>
-            }
+        {imageUri && state === 'idle' && (
+          <TouchableOpacity style={styles.uploadBtn} onPress={upload} activeOpacity={0.8}>
+            <Ionicons name="cloud-upload" size={20} color={colors.bg} />
+            <Text style={styles.uploadBtnText}>Upload receipt</Text>
           </TouchableOpacity>
         )}
 
+        {state === 'uploading' && (
+          <View style={styles.statusCard}>
+            <ActivityIndicator color={colors.primary} size="large" />
+            <Text style={styles.statusText}>Uploading…</Text>
+          </View>
+        )}
+
         {state === 'success' && (
-          <View style={styles.successMsg}>
-            <Text style={styles.successText}>Uploaded! OCR is processing…</Text>
+          <View style={[styles.statusCard, styles.successCard]}>
+            <Ionicons name="checkmark-circle" size={32} color={colors.success} />
+            <Text style={styles.successText}>Uploaded! Extracting data…</Text>
           </View>
         )}
 
         {state === 'error' && (
-          <View style={styles.errorMsg}>
+          <View style={[styles.statusCard, styles.errorCard]}>
+            <Ionicons name="alert-circle" size={28} color={colors.error} />
             <Text style={styles.errorText}>{errorMsg}</Text>
             <TouchableOpacity onPress={reset} style={styles.retryBtn}>
               <Text style={styles.retryText}>Try again</Text>
@@ -146,39 +158,86 @@ export default function CaptureScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  header: { paddingHorizontal: spacing.xl, paddingTop: spacing['2xl'], paddingBottom: spacing.lg },
-  title: { fontSize: 28, fontWeight: '700', color: colors.text1 },
+  header: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
+    gap: spacing.xs,
+  },
+  title: { fontSize: 28, fontWeight: '800', color: colors.text1, letterSpacing: -0.5 },
+  subtitle: { fontSize: 13, color: colors.text2 },
   body: { flex: 1, paddingHorizontal: spacing.xl, gap: spacing.lg },
   previewWrap: {
-    height: 320,
-    backgroundColor: colors.white,
-    borderRadius: radius.lg,
+    height: 340,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
     overflow: 'hidden',
     ...shadow.md,
+    position: 'relative',
   },
   preview: { width: '100%', height: '100%' },
+  clearBtn: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    backgroundColor: colors.bg + 'CC',
+    borderRadius: radius.full,
+  },
   placeholder: {
-    height: 320,
-    backgroundColor: colors.white,
-    borderRadius: radius.lg,
+    height: 340,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: colors.border,
     borderStyle: 'dashed',
+    gap: spacing.sm,
   },
-  placeholderText: { color: colors.text3, fontSize: 14 },
+  placeholderTitle: { fontSize: 15, fontWeight: '600', color: colors.text2 },
+  placeholderSub: { fontSize: 12, color: colors.text3 },
   btnRow: { flexDirection: 'row', gap: spacing.md },
-  btn: { flex: 1, borderRadius: radius.md, paddingVertical: spacing.md + 2, alignItems: 'center' },
-  outlineBtn: { borderWidth: 1.5, borderColor: colors.primary },
-  outlineBtnText: { color: colors.primary, fontWeight: '600', fontSize: 14 },
-  primaryBtn: { backgroundColor: colors.primary },
-  primaryBtnText: { color: colors.white, fontWeight: '700', fontSize: 15 },
-  disabled: { opacity: 0.6 },
-  successMsg: { alignItems: 'center', padding: spacing.lg, backgroundColor: '#DCFCE7', borderRadius: radius.md },
-  successText: { color: colors.success, fontWeight: '600' },
-  errorMsg: { alignItems: 'center', padding: spacing.lg, backgroundColor: '#FEE2E2', borderRadius: radius.md, gap: spacing.sm },
-  errorText: { color: colors.error, fontSize: 13 },
-  retryBtn: { backgroundColor: colors.error, borderRadius: radius.sm, paddingVertical: spacing.xs + 2, paddingHorizontal: spacing.xl },
-  retryText: { color: colors.white, fontWeight: '600', fontSize: 13 },
+  sourceBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md + 2,
+  },
+  sourceBtnText: { color: colors.primary, fontWeight: '700', fontSize: 14 },
+  uploadBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md + 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    ...shadow.glow,
+  },
+  uploadBtnText: { color: colors.bg, fontWeight: '700', fontSize: 15, letterSpacing: 0.2 },
+  statusCard: {
+    alignItems: 'center',
+    padding: spacing.xl,
+    gap: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+  },
+  successCard: { borderWidth: 1, borderColor: colors.success + '44' },
+  errorCard: { borderWidth: 1, borderColor: colors.error + '44' },
+  statusText: { color: colors.text2, fontSize: 14, fontWeight: '600' },
+  successText: { color: colors.success, fontWeight: '600', fontSize: 14 },
+  errorText: { color: colors.error, fontSize: 13, textAlign: 'center' },
+  retryBtn: {
+    backgroundColor: colors.error,
+    borderRadius: radius.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    marginTop: spacing.xs,
+  },
+  retryText: { color: colors.white, fontWeight: '700', fontSize: 13 },
 });
