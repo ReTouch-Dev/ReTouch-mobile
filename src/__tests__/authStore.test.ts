@@ -117,24 +117,8 @@ describe('authStore.register', () => {
     expect(result.current.user?.email).toBe('test@example.com');
   });
 
-  it('logs the user in instead of re-registering when the email already exists and password matches', async () => {
+  it('throws a duplicate-email error without calling register when the email already exists', async () => {
     mockAuthApi.checkEmailAvailability.mockResolvedValue({ available: false });
-    mockAuthApi.login.mockResolvedValue(MOCK_AUTH_RESPONSE);
-
-    const { result } = renderHook(() => useAuthStore());
-    await act(() => result.current.register('test@example.com', 'password123', 'Test User'));
-
-    expect(mockAuthApi.register).not.toHaveBeenCalled();
-    expect(mockAuthApi.login).toHaveBeenCalledWith({
-      email: 'test@example.com',
-      password: 'password123',
-    });
-    expect(result.current.isAuthenticated).toBe(true);
-  });
-
-  it('throws a duplicate-email error without calling register when the email already exists and login fails', async () => {
-    mockAuthApi.checkEmailAvailability.mockResolvedValue({ available: false });
-    mockAuthApi.login.mockRejectedValue(new Error('Invalid credentials'));
 
     const { result } = renderHook(() => useAuthStore());
 
@@ -142,6 +126,7 @@ describe('authStore.register', () => {
       act(() => result.current.register('test@example.com', 'wrongpass123', 'Test User')),
     ).rejects.toThrow('User with this email already exists');
     expect(mockAuthApi.register).not.toHaveBeenCalled();
+    expect(mockAuthApi.login).not.toHaveBeenCalled();
   });
 });
 
