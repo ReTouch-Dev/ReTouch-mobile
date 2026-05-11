@@ -5,8 +5,10 @@ import LoginScreen from '../../app/auth/login';
 import { useAuthStore } from '../store/authStore';
 import { ApiError } from '../api/client';
 
+const mockReplace = jest.fn();
+
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
+  useRouter: () => ({ push: jest.fn(), replace: mockReplace }),
   Link: ({ children }: { children: React.ReactNode }) => children,
 }));
 
@@ -70,6 +72,7 @@ describe('LoginScreen', () => {
 
     await waitFor(() => {
       expect(mockLogin).toHaveBeenCalledWith('test@example.com', 'securepass');
+      expect(mockReplace).toHaveBeenCalledWith('/(tabs)/receipts');
     });
   });
 

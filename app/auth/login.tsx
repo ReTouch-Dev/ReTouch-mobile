@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -27,6 +27,7 @@ type FormData = z.infer<typeof schema>;
 
 export default function LoginScreen() {
   const { login } = useAuthStore();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
@@ -37,6 +38,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await login(data.email, data.password);
+      router.replace('/(tabs)/receipts');
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Login failed. Please try again.';
       Alert.alert('Login failed', msg);

@@ -11,7 +11,7 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -33,6 +33,7 @@ type FormData = z.infer<typeof schema>;
 
 export default function RegisterScreen() {
   const { register } = useAuthStore();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
@@ -43,8 +44,13 @@ export default function RegisterScreen() {
     setLoading(true);
     try {
       await register(data.email, data.password, data.full_name || undefined);
+      router.replace('/(tabs)/receipts');
     } catch (err) {
-      const msg = err instanceof ApiError ? err.message : 'Registration failed. Please try again.';
+      const msg = err instanceof ApiError
+        ? err.message === 'User with this email already exists'
+          ? 'An account with this email already exists. Try signing in instead.'
+          : err.message
+        : 'Registration failed. Please try again.';
       Alert.alert('Sign up failed', msg);
     } finally {
       setLoading(false);
