@@ -23,7 +23,7 @@ function makeWrapper() {
   );
 }
 
-const PICKED_IMAGE = {
+const PICKED_IMAGE: ImagePicker.ImagePickerSuccessResult = {
   canceled: false,
   assets: [{ uri: 'file:///tmp/receipt.jpg', width: 100, height: 100, type: 'image' as const, fileName: 'receipt.jpg', fileSize: 1000 }],
 };

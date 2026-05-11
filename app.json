@@ -11,7 +11,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#F0F9FF"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.retouch.mobile"
@@ -24,7 +26,6 @@
       "package": "com.retouch.mobile"
     },
     "web": {
-      "favicon": "./assets/favicon.png",
       "bundler": "metro"
     },
     "plugins": [
@@ -36,7 +37,8 @@
           "photosPermission": "Allow ReTouch to access your photos to scan receipts.",
           "cameraPermission": "Allow ReTouch to use your camera to capture receipts."
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "scheme": "retouch",
     "experiments": {
