@@ -81,6 +81,7 @@ export interface InsightsResponse {
   insights: InsightCard[];
   model: string;
   tokens_used: number;
+  pending: boolean;
   fallback_reason?: string | null;
 }
 

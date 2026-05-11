@@ -53,7 +53,6 @@ export default function RootLayout() {
                   headerTintColor: colors.text1,
                   headerTitleStyle: { color: colors.text1, fontWeight: '700' },
                   headerShadowVisible: false,
-                  headerBackTitleVisible: false,
                 }}
               />
             </Stack>

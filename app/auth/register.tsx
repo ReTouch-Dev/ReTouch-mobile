@@ -61,7 +61,7 @@ export default function RegisterScreen() {
     } catch (err) {
       const msg = err instanceof ApiError
         ? err.message === 'User with this email already exists'
-          ? 'An account with this email already exists. Try signing in.'
+          ? 'An account with this email already exists. Try signing in instead.'
           : err.message
         : 'Registration failed. Please try again.';
       setFormError(msg);
@@ -83,7 +83,7 @@ export default function RegisterScreen() {
       >
         <View style={styles.logoArea}>
           <Logo size="md" />
-          <Text style={styles.headingText}>Create your account</Text>
+          <Text style={styles.headingText}>Create account</Text>
         </View>
 
         <View style={styles.form}>

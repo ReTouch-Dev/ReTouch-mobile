@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -7,11 +8,11 @@ import {
   ActivityIndicator,
   StatusBar,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../src/store/authStore';
 import { colors, spacing, radius, shadow } from '../../src/theme/tokens';
-import { useState } from 'react';
 import { Logo } from '../../src/components/Logo';
 
 function MenuItem({
@@ -51,6 +52,7 @@ function MenuItem({
 
 export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const insets = useSafeAreaInsets();
 
@@ -69,6 +71,7 @@ export default function ProfileScreen() {
           } finally {
             setLoading(false);
           }
+          router.replace('/auth/login');
         },
       },
     ]);
