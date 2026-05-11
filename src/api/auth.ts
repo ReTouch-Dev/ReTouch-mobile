@@ -23,6 +23,10 @@ export interface AuthResponse {
   };
 }
 
+export interface EmailAvailabilityResponse {
+  available: boolean;
+}
+
 export const authApi = {
   login: (payload: LoginPayload) =>
     request<AuthResponse>('/api/auth/login', {
@@ -35,6 +39,13 @@ export const authApi = {
     request<AuthResponse>('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify(payload),
+      skipAuth: true,
+    }),
+
+  checkEmailAvailability: (email: string) =>
+    request<EmailAvailabilityResponse>('/api/auth/email-availability', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
       skipAuth: true,
     }),
 

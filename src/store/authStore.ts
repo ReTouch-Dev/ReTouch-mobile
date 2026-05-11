@@ -5,7 +5,7 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import { authApi, type AuthResponse } from '../api/auth';
-import { UnauthorizedError } from '../api/client';
+import { ApiError, UnauthorizedError } from '../api/client';
 
 interface User {
   id: number;
@@ -73,6 +73,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   register: async (email: string, password: string, fullName?: string) => {
+    const availability = await authApi.checkEmailAvailability(email);
+    if (!availability.available) {
+      try {
+        const existing: AuthResponse = await authApi.login({ email, password });
+        await saveTokens(existing.access_token, existing.refresh_token);
+        set({ user: existing.user, isAuthenticated: true });
+        return;
+      } catch {
+        throw new ApiError(400, 'User with this email already exists');
+      }
+    }
+
     const res: AuthResponse = await authApi.register({
       email,
       password,
