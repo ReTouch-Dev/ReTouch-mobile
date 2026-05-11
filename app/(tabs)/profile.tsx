@@ -4,11 +4,9 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   StatusBar,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../src/store/authStore';
@@ -52,29 +50,22 @@ function MenuItem({
 
 export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const insets = useSafeAreaInsets();
 
   const initial = (user?.full_name ?? user?.email ?? '?')[0].toUpperCase();
 
-  const handleLogout = () => {
-    Alert.alert('Sign out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign out',
-        style: 'destructive',
-        onPress: async () => {
-          setLoading(true);
-          try {
-            await logout();
-          } finally {
-            setLoading(false);
-          }
-          router.replace('/auth/login');
-        },
-      },
-    ]);
+  const handleLogout = async () => {
+    setLoading(true);
+    setConfirming(false);
+    try {
+      await logout();
+      // Redirect handled declaratively by _layout.tsx Redirect component
+      // when isAuthenticated flips to false
+    } catch {
+      setLoading(false);
+    }
   };
 
   return (
@@ -104,10 +95,34 @@ export default function ProfileScreen() {
           icon="log-out-outline"
           label="Sign out"
           danger
-          onPress={handleLogout}
+          onPress={() => setConfirming(true)}
           loading={loading}
         />
       </View>
+
+      {/* Inline sign-out confirmation — no Alert.alert, stays in React tree */}
+      {confirming && (
+        <View style={styles.confirmSheet}>
+          <Text style={styles.confirmTitle}>Sign out?</Text>
+          <Text style={styles.confirmSub}>You can sign back in at any time.</Text>
+          <View style={styles.confirmBtns}>
+            <TouchableOpacity
+              style={styles.cancelBtn}
+              onPress={() => setConfirming(false)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.signOutBtn}
+              onPress={handleLogout}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.signOutBtnText}>Sign out</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       <Text style={[styles.version, { paddingBottom: insets.bottom + spacing.lg }]}>
         ReTouch v1.0.0
@@ -176,4 +191,35 @@ const styles = StyleSheet.create({
   menuValue: { fontSize: 12, color: colors.text3, maxWidth: 120 },
   menuDivider: { height: 1, backgroundColor: colors.divider, marginLeft: spacing.lg + 34 + spacing.md },
   version: { textAlign: 'center', color: colors.text3, fontSize: 12, marginTop: 'auto' },
+  confirmSheet: {
+    marginHorizontal: spacing.xl,
+    marginTop: spacing.xl,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.error + '44',
+    padding: spacing.xl,
+    gap: spacing.sm,
+    ...shadow.sm,
+  },
+  confirmTitle: { fontSize: 16, fontWeight: '700', color: colors.text1 },
+  confirmSub: { fontSize: 13, color: colors.text2 },
+  confirmBtns: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  cancelBtnText: { color: colors.text1, fontWeight: '600', fontSize: 14 },
+  signOutBtn: {
+    flex: 1,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.md,
+    backgroundColor: colors.error,
+    alignItems: 'center',
+  },
+  signOutBtnText: { color: colors.white, fontWeight: '700', fontSize: 14 },
 });

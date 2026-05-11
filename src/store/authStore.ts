@@ -88,8 +88,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
+    // Cap server call at 3s so a dead backend never blocks sign-out
     try {
-      await authApi.logout();
+      await Promise.race([
+        authApi.logout(),
+        new Promise<void>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
+      ]);
     } catch {}
     await clearTokens();
     set({ user: null, isAuthenticated: false });

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Redirect, Stack, useSegments } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -12,51 +12,42 @@ const queryClient = new QueryClient({
   },
 });
 
-function AuthGate({ children }: { children: React.ReactNode }) {
+export default function RootLayout() {
   const { isAuthenticated, isLoading, hydrate } = useAuthStore();
-  const router = useRouter();
   const segments = useSegments();
 
   useEffect(() => {
     hydrate();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (isLoading) return;
-    const inAuthGroup = segments[0] === 'auth';
-    if (!isAuthenticated && !inAuthGroup) {
-      router.replace('/auth/login');
-    } else if (isAuthenticated && inAuthGroup) {
-      router.replace('/(tabs)/receipts');
-    }
-  }, [isAuthenticated, isLoading, segments]);
-
   if (isLoading) return null;
-  return <>{children}</>;
-}
 
-export default function RootLayout() {
+  const inAuthGroup = segments[0] === 'auth';
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
-          <AuthGate>
-            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="auth" />
-              <Stack.Screen
-                name="receipt/[id]"
-                options={{
-                  headerShown: true,
-                  title: 'Receipt',
-                  headerStyle: { backgroundColor: colors.surface },
-                  headerTintColor: colors.text1,
-                  headerTitleStyle: { color: colors.text1, fontWeight: '700' },
-                  headerShadowVisible: false,
-                }}
-              />
-            </Stack>
-          </AuthGate>
+          {/* Declarative auth guard — Redirect is integrated with Expo Router's navigation lifecycle */}
+          {!isAuthenticated && !inAuthGroup && <Redirect href="/auth/login" />}
+          {isAuthenticated && inAuthGroup && <Redirect href="/(tabs)/receipts" />}
+
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="auth" />
+            <Stack.Screen
+              name="receipt/[id]"
+              options={{
+                headerShown: true,
+                title: 'Receipt',
+                headerStyle: { backgroundColor: colors.surface },
+                headerTintColor: colors.text1,
+                headerTitleStyle: { color: colors.text1, fontWeight: '700' },
+                headerShadowVisible: false,
+              }}
+            />
+          </Stack>
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
