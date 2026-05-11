@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "ReTouch",
+    "slug": "retouch-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F0F9FF"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.retouch.mobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F0F9FF"
+      },
+      "package": "com.retouch.mobile"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow ReTouch to access your photos to scan receipts.",
+          "cameraPermission": "Allow ReTouch to use your camera to capture receipts."
+        }
+      ]
+    ],
+    "scheme": "retouch",
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
