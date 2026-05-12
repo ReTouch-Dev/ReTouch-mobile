@@ -1,38 +1,34 @@
 import { useState, useCallback } from 'react';
 import {
-  View,
-  Text,
   FlatList,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
   RefreshControl,
-  ActivityIndicator,
   StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
+import { Ionicons } from '@expo/vector-icons';
 import { receiptsApi, type ReceiptListItem } from '../../src/api/receipts';
-import { colors, spacing, radius, shadow } from '../../src/theme/tokens';
+import { Avatar, Badge, EmptyState, ReceiptCardSkeleton } from '../../src/components/ui';
+import { colors, radius, shadow, spacing } from '../../src/theme/tokens';
+import { formatCurrency, formatRelativeDate, getInitial } from '../../src/utils/format';
 
-function formatDate(iso: string | null) {
-  if (!iso) return '';
-  return new Date(iso).toLocaleDateString('en-HK', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
-function formatAmount(v: number | null) {
-  if (v == null) return '';
-  return `HK$${v.toFixed(2)}`;
-}
+// ---------------------------------------------------------------------------
+// Receipt card
+// ---------------------------------------------------------------------------
 
 function ReceiptCard({ item }: { item: ReceiptListItem }) {
   const router = useRouter();
   const merchant = item.ocr?.merchant ?? 'Receipt';
-  const date = item.ocr?.date ? formatDate(item.ocr.date) : formatDate(item.created_at);
-  const total = formatAmount(item.ocr?.total ?? null);
-  const pending = item.upload_status !== 'completed' || item.ocr?.status === 'processing';
-  const initial = merchant[0]?.toUpperCase() ?? 'R';
+  const total = item.ocr?.total != null ? formatCurrency(item.ocr.total) : null;
+  const date = formatRelativeDate(item.ocr?.date ?? item.created_at);
+  const isPending = item.upload_status !== 'completed' || item.ocr?.status === 'processing';
+  const initial = getInitial(merchant, 'R');
 
   return (
     <TouchableOpacity
@@ -40,31 +36,30 @@ function ReceiptCard({ item }: { item: ReceiptListItem }) {
       onPress={() => router.push(`/receipt/${item.receipt_id}`)}
       activeOpacity={0.7}
     >
-      <View style={styles.cardLeft}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{initial}</Text>
-        </View>
-        <View style={styles.cardBody}>
-          <Text style={styles.merchant} numberOfLines={1}>{merchant}</Text>
-          <Text style={styles.date}>{date}</Text>
-        </View>
+      <Avatar initial={initial} size={44} shape="rounded" />
+      <View style={styles.cardBody}>
+        <Text style={styles.merchant} numberOfLines={1}>{merchant}</Text>
+        <Text style={styles.date}>{date}</Text>
       </View>
       <View style={styles.cardRight}>
-        {pending ? (
-          <View style={styles.processingBadge}>
-            <Text style={styles.processingText}>Processing</Text>
-          </View>
+        {isPending ? (
+          <Badge label="Processing" variant="processing" />
         ) : total ? (
           <Text style={styles.amount}>{total}</Text>
         ) : null}
+        <Ionicons name="chevron-forward" size={14} color={colors.text3} />
       </View>
     </TouchableOpacity>
   );
 }
 
-function ListSeparator() {
+function Separator() {
   return <View style={styles.separator} />;
 }
+
+// ---------------------------------------------------------------------------
+// Screen
+// ---------------------------------------------------------------------------
 
 export default function ReceiptsScreen() {
   const [search, setSearch] = useState('');
@@ -85,32 +80,47 @@ export default function ReceiptsScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
 
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Receipts</Text>
-        {data?.total != null && data.total > 0 && (
-          <View style={styles.countBadge}>
-            <Text style={styles.countText}>{data.total}</Text>
-          </View>
-        )}
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>Receipts</Text>
+          {data?.total != null && data.total > 0 && (
+            <View style={styles.countBadge}>
+              <Text style={styles.countText}>{data.total}</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.searchWrap}>
+          <Ionicons name="search-outline" size={15} color={colors.text3} style={styles.searchIcon} />
+          <TextInput
+            style={styles.search}
+            placeholder="Search by merchant…"
+            placeholderTextColor={colors.text3}
+            value={search}
+            onChangeText={(t) => { setSearch(t); setPage(1); }}
+            returnKeyType="search"
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')} style={styles.clearBtn}>
+              <Ionicons name="close-circle" size={16} color={colors.text3} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
-      <View style={styles.searchWrap}>
-        <TextInput
-          style={styles.search}
-          placeholder="Search by merchant…"
-          placeholderTextColor={colors.text3}
-          value={search}
-          onChangeText={(t) => { setSearch(t); setPage(1); }}
-          returnKeyType="search"
-        />
-      </View>
-
+      {/* Loading skeleton */}
       {isLoading && !data ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.primary} size="large" />
+        <View style={styles.skeletonWrap}>
+          <View style={[styles.listCard, { overflow: 'hidden' }]}>
+            {Array.from({ length: 7 }).map((_, i) => (
+              <ReceiptCardSkeleton key={i} />
+            ))}
+          </View>
         </View>
       ) : error ? (
         <View style={styles.center}>
+          <Ionicons name="cloud-offline-outline" size={40} color={colors.text3} />
           <Text style={styles.errText}>Failed to load receipts</Text>
           <TouchableOpacity onPress={() => refetch()} style={styles.retryBtn}>
             <Text style={styles.retryText}>Retry</Text>
@@ -120,9 +130,23 @@ export default function ReceiptsScreen() {
         <FlatList
           data={data?.results ?? []}
           keyExtractor={(item) => item.receipt_id}
-          renderItem={({ item }) => <ReceiptCard item={item} />}
-          ItemSeparatorComponent={ListSeparator}
-          contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + spacing['2xl'] }]}
+          renderItem={({ item, index }) => (
+            <View
+              style={[
+                styles.cardWrapper,
+                index === 0 && styles.cardFirst,
+                index === (data?.results.length ?? 0) - 1 && styles.cardLast,
+              ]}
+            >
+              <ReceiptCard item={item} />
+            </View>
+          )}
+          ItemSeparatorComponent={Separator}
+          contentContainerStyle={[
+            styles.list,
+            { paddingBottom: insets.bottom + spacing['2xl'] },
+          ]}
+          style={{ marginHorizontal: spacing.xl }}
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
@@ -131,11 +155,11 @@ export default function ReceiptsScreen() {
             />
           }
           ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text style={styles.emptyIcon}>🧾</Text>
-              <Text style={styles.emptyTitle}>No receipts yet</Text>
-              <Text style={styles.emptySubtitle}>Tap Scan to add your first one</Text>
-            </View>
+            <EmptyState
+              icon="🧾"
+              title="No receipts yet"
+              subtitle="Tap Scan to add your first one"
+            />
           }
           onEndReached={() => { if (data?.has_next) setPage((p) => p + 1); }}
           onEndReachedThreshold={0.4}
@@ -147,14 +171,14 @@ export default function ReceiptsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
+
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.lg,
     paddingBottom: spacing.md,
+    gap: spacing.md,
   },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   title: { fontSize: 28, fontWeight: '800', color: colors.text1, letterSpacing: -0.5 },
   countBadge: {
     backgroundColor: colors.primaryLight,
@@ -163,57 +187,72 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   countText: { fontSize: 12, fontWeight: '700', color: colors.primary },
-  searchWrap: { paddingHorizontal: spacing.xl, paddingBottom: spacing.md },
-  search: {
+
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.lg,
+    paddingRight: spacing.sm,
+  },
+  searchIcon: { paddingLeft: spacing.md },
+  search: {
+    flex: 1,
     paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.sm,
     fontSize: 14,
     color: colors.text1,
   },
-  list: { paddingHorizontal: spacing.xl, paddingTop: spacing.xs },
-  separator: { height: 1, backgroundColor: colors.divider, marginHorizontal: spacing.md },
-  card: {
+  clearBtn: { padding: spacing.xs },
+
+  skeletonWrap: { paddingHorizontal: spacing.xl, marginTop: spacing.xs },
+  listCard: {
     backgroundColor: colors.surface,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md + 2,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow.sm,
+  },
+
+  list: { paddingTop: spacing.xs },
+  cardWrapper: {
+    backgroundColor: colors.surface,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: colors.border,
+  },
+  cardFirst: {
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    borderTopWidth: 1,
+  },
+  cardLast: {
+    borderBottomLeftRadius: radius.lg,
+    borderBottomRightRadius: radius.lg,
+    borderBottomWidth: 1,
+  },
+
+  card: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md + 2,
+    gap: spacing.md,
+    ...shadow.sm,
   },
-  cardLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, flex: 1 },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.md,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: { fontSize: 18, fontWeight: '700', color: colors.primary },
   cardBody: { flex: 1, gap: 3 },
   merchant: { fontSize: 14, fontWeight: '600', color: colors.text1 },
   date: { fontSize: 12, color: colors.text3 },
-  cardRight: { alignItems: 'flex-end', minWidth: 70 },
+  cardRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   amount: { fontSize: 14, fontWeight: '700', color: colors.text1, fontVariant: ['tabular-nums'] },
-  processingBadge: {
-    backgroundColor: colors.primaryLight,
-    borderRadius: radius.full,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-  },
-  processingText: { fontSize: 11, color: colors.primary, fontWeight: '600' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  empty: { alignItems: 'center', paddingTop: spacing['4xl'], gap: spacing.sm },
-  emptyIcon: { fontSize: 40, marginBottom: spacing.sm },
-  emptyTitle: { fontSize: 17, fontWeight: '600', color: colors.text1 },
-  emptySubtitle: { fontSize: 14, color: colors.text2 },
+
+  separator: { height: 1, backgroundColor: colors.divider },
+
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
   errText: { color: colors.error, fontSize: 14 },
   retryBtn: {
-    marginTop: spacing.md,
     backgroundColor: colors.primary,
     borderRadius: radius.sm,
     paddingVertical: spacing.sm,

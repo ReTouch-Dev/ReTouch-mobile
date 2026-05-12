@@ -1,62 +1,66 @@
+/**
+ * Authentication API adapter.
+ *
+ * Endpoints: login, register, email availability, token refresh, me, logout.
+ * When DEMO_MODE is true every call resolves with fixture data.
+ */
 import { request } from './client';
+import { DEMO_MODE } from '../lib/demo';
+import { DEMO_AUTH, DEMO_USER } from '../constants/fixtures';
+import type {
+  AuthResponse,
+  EmailAvailabilityResponse,
+  LoginPayload,
+  RegisterPayload,
+} from '../types';
 
-export interface LoginPayload {
-  email: string;
-  password: string;
-}
-
-export interface RegisterPayload {
-  email: string;
-  password: string;
-  full_name?: string;
-}
-
-export interface AuthResponse {
-  access_token: string;
-  refresh_token: string;
-  user: {
-    id: number;
-    email: string;
-    full_name: string | null;
-    is_active: boolean;
-    is_verified: boolean;
-  };
-}
-
-export interface EmailAvailabilityResponse {
-  available: boolean;
-}
+// Re-export types for consumers that import from this module
+export type { AuthResponse, EmailAvailabilityResponse, LoginPayload, RegisterPayload };
 
 export const authApi = {
-  login: (payload: LoginPayload) =>
-    request<AuthResponse>('/api/auth/login', {
+  login: (payload: LoginPayload): Promise<AuthResponse> => {
+    if (DEMO_MODE) return Promise.resolve(DEMO_AUTH);
+    return request<AuthResponse>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify(payload),
       skipAuth: true,
-    }),
+    });
+  },
 
-  register: (payload: RegisterPayload) =>
-    request<AuthResponse>('/api/auth/register', {
+  register: (payload: RegisterPayload): Promise<AuthResponse> => {
+    if (DEMO_MODE) return Promise.resolve(DEMO_AUTH);
+    return request<AuthResponse>('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify(payload),
       skipAuth: true,
-    }),
+    });
+  },
 
-  checkEmailAvailability: (email: string) =>
-    request<EmailAvailabilityResponse>('/api/auth/email-availability', {
+  checkEmailAvailability: (email: string): Promise<EmailAvailabilityResponse> => {
+    if (DEMO_MODE) return Promise.resolve({ available: true });
+    return request<EmailAvailabilityResponse>('/api/auth/email-availability', {
       method: 'POST',
       body: JSON.stringify({ email }),
       skipAuth: true,
-    }),
+    });
+  },
 
-  refresh: (refreshToken: string) =>
-    request<{ access_token: string }>('/api/auth/refresh', {
+  refresh: (refreshToken: string): Promise<{ access_token: string }> => {
+    if (DEMO_MODE) return Promise.resolve({ access_token: 'demo-access-token' });
+    return request<{ access_token: string }>('/api/auth/refresh', {
       method: 'POST',
       headers: { Authorization: `Bearer ${refreshToken}` },
       skipAuth: true,
-    }),
+    });
+  },
 
-  me: () => request<AuthResponse['user']>('/api/auth/me'),
+  me: (): Promise<AuthResponse['user']> => {
+    if (DEMO_MODE) return Promise.resolve(DEMO_USER);
+    return request<AuthResponse['user']>('/api/auth/me');
+  },
 
-  logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
+  logout: (): Promise<void> => {
+    if (DEMO_MODE) return Promise.resolve();
+    return request<void>('/api/auth/logout', { method: 'POST' });
+  },
 };

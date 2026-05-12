@@ -1,142 +1,141 @@
 # ReTouch Mobile
 
-Consumer receipt wallet — photograph receipts, get structured OCR data, track spending.
+Consumer receipt wallet — photograph receipts, get structured OCR data, track spending analytics.
 
-Built with **Expo 52 + Expo Router v4** (React Native). Companion to [ReTouch-server](../ReTouch-server).
+Built with **Expo 52 + Expo Router v4** (React Native 0.76). Standalone app with no code imports from the server repositories.
+
+> **Full architecture docs:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
 ---
 
-## Architecture
+## Quick Start
+
+```bash
+cp .env.example .env          # copy env template
+# edit .env if needed (see Environment Variables below)
+npm install
+npm start                      # Expo Dev Tools — press i / a / w
+```
+
+### Demo mode (no backend required)
+
+Set `EXPO_PUBLIC_DEMO_MODE=true` in `.env` to run the app fully offline with 20 realistic Hong Kong receipts and computed analytics. Any credentials are accepted.
+
+```bash
+EXPO_PUBLIC_DEMO_MODE=true npm start
+```
+
+---
+
+## Project Structure
 
 ```
 ReTouch-mobile/
-├── app/
-│   ├── _layout.tsx          # Root layout: QueryClient, AuthGate, safe-area
-│   ├── auth/
-│   │   ├── login.tsx
-│   │   └── register.tsx
-│   ├── (tabs)/
-│   │   ├── receipts.tsx     # Receipt library — search, paginated FlatList
-│   │   ├── capture.tsx      # Camera / gallery → upload → OCR poll
-│   │   ├── analytics.tsx    # Spending summary, merchants, categories, AI insights
-│   │   └── profile.tsx      # User info, sign out
-│   └── receipt/[id].tsx     # Full receipt detail + line items
-└── src/
-    ├── api/
-    │   ├── client.ts        # fetch wrapper with SecureStore JWT, ApiError, UnauthorizedError
-    │   ├── auth.ts          # login, register, refresh, me, logout
-    │   ├── receipts.ts      # list, detail, upload (FormData)
-    │   └── analytics.ts     # summary, topMerchants, categoryBreakdown, insights
-    ├── store/
-    │   └── authStore.ts     # Zustand — hydrate, login, register, logout, refreshToken
-    ├── theme/
-    │   └── tokens.ts        # colors, spacing, radius, shadow, fonts
-    └── __tests__/
-        ├── authStore.test.ts
-        ├── login.test.tsx
-        ├── receipts.test.tsx
-        ├── capture.test.tsx
-        └── analytics.test.tsx
+├── app/                    # Expo Router — file-based routes
+│   ├── _layout.tsx         # Root: QueryClient, auth guard (<Redirect>), safe area
+│   ├── auth/               # Login + register screens
+│   ├── (tabs)/             # Tab navigation (Receipts, Scan, Analytics, Profile)
+│   └── receipt/[id].tsx    # Dynamic receipt detail
+│
+├── src/
+│   ├── types/index.ts      # Centralised TypeScript interfaces (single source of truth)
+│   ├── api/                # HTTP adapters — check DEMO_MODE, else call server
+│   │   ├── client.ts       # JWT-injecting fetch wrapper
+│   │   ├── auth.ts
+│   │   ├── receipts.ts
+│   │   └── analytics.ts
+│   ├── store/
+│   │   └── authStore.ts    # Zustand: auth-only global state
+│   ├── components/
+│   │   ├── ui/             # Atomic reusable components (Button, Input, Card, Avatar, Badge, EmptyState, Skeleton)
+│   │   └── Logo.tsx
+│   ├── constants/
+│   │   └── fixtures.ts     # 20 HK demo receipts + computed analytics
+│   ├── lib/
+│   │   ├── demo.ts         # DEMO_MODE env flag
+│   │   └── sessionStorage.ts  # SecureStore (native) / localStorage (web)
+│   ├── theme/
+│   │   └── tokens.ts       # Colors, spacing, radius, shadows, typography
+│   ├── utils/
+│   │   └── format.ts       # Pure formatters: currency, date, time, initials
+│   └── __tests__/          # 62 Jest unit + integration tests
+│
+└── docs/
+    └── ARCHITECTURE.md     # System diagrams (C4, layers, flows)
 ```
 
-### Key design decisions
+---
+
+## Key Design Decisions
 
 | Concern | Approach |
-|---|---|
-| Auth | JWT (24h access + refresh) stored in `expo-secure-store` |
-| Server state | TanStack Query v5 — queries, invalidation, `refetchInterval` for OCR polling |
-| Client state | Zustand v5 — auth only; everything else is server state |
-| Forms | react-hook-form + Zod for schema validation |
-| File upload | FormData with `expo-image-picker` result URI |
-| Images | `expo-image` with `contentFit="contain"` and 200ms transition |
-| Analytics | Separate analytics service (`EXPO_PUBLIC_ANALYTICS_BASE_URL`), JWT-authed |
-| Storage backend | Server abstracts local vs. R2/S3 — mobile always calls `/api/mobile/receipts` |
-
-### Backend integration
-
-The mobile app talks to two services:
-
-1. **ReTouch-server** (`EXPO_PUBLIC_API_BASE_URL`, default `:5000`) — auth, receipts, uploads
-2. **Analytics service** (`EXPO_PUBLIC_ANALYTICS_BASE_URL`, default `:5002/analytics`) — spend data, AI insights
-
-Virtual device: each user gets a virtual device row (`m` + 3 chars) created automatically on first upload. This satisfies the server's `receipts.device_id NOT NULL` constraint without requiring hardware registration.
+|---------|---------|
+| **Standalone** | Zero code imports from server repos; HTTP base URLs via env vars |
+| **Demo mode** | `EXPO_PUBLIC_DEMO_MODE=true` → all API calls return fixtures, fully offline |
+| **Auth guard** | Declarative `<Redirect>` in root `_layout.tsx` (Expo Router v4 best practice) |
+| **Server state** | TanStack Query v5 — queries, invalidation, polling for OCR status |
+| **Client state** | Zustand v5 — auth only; all server data lives in TQ cache |
+| **Forms** | react-hook-form + Zod schema validation |
+| **Types** | All shared interfaces in `src/types/index.ts`; API modules re-export for backward compat |
+| **Formatting** | Pure functions in `src/utils/format.ts` (HK$, dates, initials) |
+| **UI components** | Atomic design: `Button`, `Input`, `Card`, `Avatar`, `Badge`, `EmptyState`, `Skeleton` |
+| **Token storage** | `expo-secure-store` (native) / `localStorage` (web), abstracted in `lib/sessionStorage.ts` |
 
 ---
 
-## Getting started
+## Development Scripts
 
 ```bash
-cp .env.example .env
-# Edit .env — set EXPO_PUBLIC_API_BASE_URL to your machine's LAN IP if testing on device
-npm install
-npm start        # opens Expo Dev Tools — press i (iOS), a (Android), or w (web)
+npm test              # run all 62 Jest tests
+npm run test:watch    # watch mode
+npm run lint          # ESLint
+npm run typecheck     # tsc --noEmit
 ```
 
-### Physical device
+---
 
-Replace `localhost` with your machine's LAN IP in `.env`:
+## Environment Variables
 
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `EXPO_PUBLIC_API_BASE_URL` | `http://localhost:5000` | Flask API base URL |
+| `EXPO_PUBLIC_ANALYTICS_BASE_URL` | `http://localhost:5002/analytics` | Analytics microservice base URL |
+| `EXPO_PUBLIC_DEMO_MODE` | `false` | Set to `true` for offline demo with fixture data |
+
+All `EXPO_PUBLIC_*` vars are inlined at build time by Metro bundler.
+
+**Physical device testing:** Replace `localhost` with your machine's LAN IP:
 ```
 EXPO_PUBLIC_API_BASE_URL=http://192.168.x.x:5000
-EXPO_PUBLIC_ANALYTICS_BASE_URL=http://192.168.x.x:5002/analytics
 ```
 
 ---
 
-## Development
+## Running with the Full Stack
 
 ```bash
-npm test           # jest (passWithNoTests)
-npm run test:watch # watch mode
-npm run lint       # ESLint
-npm run typecheck  # tsc --noEmit
-```
-
-### Running the full stack locally
-
-```bash
-# Terminal 1 — ReTouch-server
+# Terminal 1 — API server (ReTouch-server)
 cd ../ReTouch-server/backend
+source .venv/bin/activate
 STORAGE_BACKEND=local flask run -p 5000
 
-# Terminal 2 — Analytics service
+# Terminal 2 — Analytics service (ReTouch-server)
 cd ../ReTouch-server/analytics
+source ../.venv/bin/activate
 flask run -p 5002
 
-# Terminal 3 — Mobile
-cd ../ReTouch-mobile
+# Terminal 3 — Mobile app
 npm start
 ```
 
 ---
 
-## CI
-
-GitHub Actions runs on every push/PR to `main`:
-
-- **ci.yml** — lint → typecheck → jest → expo export (web dry-run)
-- **codeql.yml** — CodeQL `security-extended` on push to `main` + weekly schedule
-
----
-
-## Environment variables
-
-| Variable | Default | Description |
-|---|---|---|
-| `EXPO_PUBLIC_API_BASE_URL` | `http://localhost:5000` | ReTouch-server base URL |
-| `EXPO_PUBLIC_ANALYTICS_BASE_URL` | `http://localhost:5002/analytics` | Analytics service base URL |
-
-All `EXPO_PUBLIC_*` vars are inlined at build time by Expo Metro bundler.
-
----
-
-## Production build
+## Production Build
 
 ```bash
-# EAS Build (recommended for App Store / Play Store)
 npm install -g eas-cli
 eas login
 eas build --platform all
 ```
 
-Set `EXPO_PUBLIC_API_BASE_URL` and `EXPO_PUBLIC_ANALYTICS_BASE_URL` to your production URLs in the EAS project environment variables before building.
+Configure `EXPO_PUBLIC_API_BASE_URL` and `EXPO_PUBLIC_ANALYTICS_BASE_URL` in EAS project environment variables before building.

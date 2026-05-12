@@ -1,105 +1,86 @@
+/**
+ * Analytics API adapter.
+ *
+ * Connects to the analytics microservice (port 5002).
+ * When DEMO_MODE is true every call resolves with computed fixture data.
+ */
 import { getSessionItem } from '../lib/sessionStorage';
+import { DEMO_MODE } from '../lib/demo';
+import {
+  getDemoSummary,
+  getDemoTopMerchants,
+  getDemoCategoryBreakdown,
+  getDemoInsights,
+} from '../constants/fixtures';
+import type {
+  CategoryBreakdownResponse,
+  InsightsResponse,
+  SpendingSummary,
+  SpendingTrendsResponse,
+  TopMerchantsResponse,
+} from '../types';
 
-const ANALYTICS_BASE = process.env.EXPO_PUBLIC_ANALYTICS_BASE_URL ?? 'http://localhost:5002/analytics';
+// Re-export types consumed by screens / tests
+export type {
+  CategoryBreakdownResponse,
+  InsightsResponse,
+  SpendingSummary,
+  SpendingTrendsResponse,
+  TopMerchantsResponse,
+};
+export type { InsightCard, SpendingTrend, TopMerchant, CategoryItem } from '../types';
 
-function analyticsRequest<T>(path: string): Promise<T> {
-  return fetch(`${ANALYTICS_BASE}${path}`, {
-    headers: {},
-  }).then(async (res) => {
-    if (!res.ok) throw new Error(`Analytics ${res.status}`);
-    return res.json() as Promise<T>;
-  });
-}
+const ANALYTICS_BASE =
+  process.env.EXPO_PUBLIC_ANALYTICS_BASE_URL ?? 'http://localhost:5002/analytics';
 
-// We piggyback JWT from the API client for user-scoped analytics
-async function authedAnalyticsRequest<T>(path: string): Promise<T> {
+async function authedRequest<T>(path: string): Promise<T> {
   const token = await getSessionItem('access_token');
-  const headers: Record<string, string> = token
-    ? { Authorization: `Bearer ${token}` }
-    : {};
+  const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
   const res = await fetch(`${ANALYTICS_BASE}${path}`, { headers });
   if (!res.ok) throw new Error(`Analytics ${res.status}`);
   return res.json() as Promise<T>;
 }
 
-export interface SpendingSummary {
-  user_id: number;
-  total_receipts: number;
-  total_spent: number;
-  average_transaction: number;
-  first_receipt_date: string | null;
-  last_receipt_date: string | null;
-}
-
-export interface SpendingTrend {
-  period: string;
-  total_spent: number;
-  receipt_count: number;
-  average_transaction: number;
-}
-
-export interface SpendingTrendsResponse {
-  user_id: number;
-  interval: string;
-  trends: SpendingTrend[];
-}
-
-export interface TopMerchant {
-  merchant: string;
-  visits: number;
-  total_spent: number;
-  average_transaction: number;
-}
-
-export interface TopMerchantsResponse {
-  user_id: number;
-  merchants: TopMerchant[];
-  count: number;
-}
-
-export interface CategoryItem {
-  category: string;
-  receipt_count: number;
-  total_spent: number;
-  percentage: number;
-  top_merchants: string[];
-}
-
-export interface CategoryBreakdownResponse {
-  user_id: number;
-  categories: CategoryItem[];
-  count: number;
-}
-
-export interface InsightCard {
-  headline: string;
-  detail: string;
-}
-
-export interface InsightsResponse {
-  user_id: number;
-  insights: InsightCard[];
-  model: string;
-  tokens_used: number;
-  pending: boolean;
-  fallback_reason?: string | null;
-}
-
 export const analyticsApi = {
-  summary: (days = 30) =>
-    authedAnalyticsRequest<SpendingSummary>(`/user/spending/summary?days=${days}`),
-
-  trends: (params: { interval?: string; periods?: number } = {}) => {
-    const q = new URLSearchParams({ interval: params.interval ?? 'monthly', periods: String(params.periods ?? 6) });
-    return authedAnalyticsRequest<SpendingTrendsResponse>(`/user/spending/trends?${q}`);
+  summary: (days = 30): Promise<SpendingSummary> => {
+    if (DEMO_MODE) return new Promise((res) => setTimeout(() => res(getDemoSummary(days)), 350));
+    return authedRequest<SpendingSummary>(`/user/spending/summary?days=${days}`);
   },
 
-  topMerchants: (days = 30, limit = 10) =>
-    authedAnalyticsRequest<TopMerchantsResponse>(`/user/merchants/top?days=${days}&limit=${limit}`),
+  trends: (params: { interval?: string; periods?: number } = {}): Promise<SpendingTrendsResponse> => {
+    if (DEMO_MODE) {
+      // Return a minimal trends shape from fixture data
+      return new Promise((res) =>
+        setTimeout(
+          () =>
+            res({
+              user_id: 1,
+              interval: params.interval ?? 'monthly',
+              trends: [],
+            }),
+          350,
+        ),
+      );
+    }
+    const q = new URLSearchParams({
+      interval: params.interval ?? 'monthly',
+      periods: String(params.periods ?? 6),
+    });
+    return authedRequest<SpendingTrendsResponse>(`/user/spending/trends?${q}`);
+  },
 
-  categoryBreakdown: (days = 30) =>
-    authedAnalyticsRequest<CategoryBreakdownResponse>(`/user/categories/breakdown?days=${days}`),
+  topMerchants: (days = 30, limit = 10): Promise<TopMerchantsResponse> => {
+    if (DEMO_MODE) return new Promise((res) => setTimeout(() => res(getDemoTopMerchants(days, limit)), 350));
+    return authedRequest<TopMerchantsResponse>(`/user/merchants/top?days=${days}&limit=${limit}`);
+  },
 
-  insights: (days = 30) =>
-    authedAnalyticsRequest<InsightsResponse>(`/user/insights?days=${days}`),
+  categoryBreakdown: (days = 30): Promise<CategoryBreakdownResponse> => {
+    if (DEMO_MODE) return new Promise((res) => setTimeout(() => res(getDemoCategoryBreakdown(days)), 350));
+    return authedRequest<CategoryBreakdownResponse>(`/user/categories/breakdown?days=${days}`);
+  },
+
+  insights: (days = 30): Promise<InsightsResponse> => {
+    if (DEMO_MODE) return new Promise((res) => setTimeout(() => res(getDemoInsights(days)), 500));
+    return authedRequest<InsightsResponse>(`/user/insights?days=${days}`);
+  },
 };

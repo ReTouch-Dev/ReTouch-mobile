@@ -1,11 +1,11 @@
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
   ActivityIndicator,
-  TouchableOpacity,
+  ScrollView,
   StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams } from 'expo-router';
@@ -13,7 +13,13 @@ import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { receiptsApi } from '../../src/api/receipts';
-import { colors, spacing, radius, shadow } from '../../src/theme/tokens';
+import { Card } from '../../src/components/ui';
+import { colors, radius, shadow, spacing } from '../../src/theme/tokens';
+import { formatCurrency, formatDate, formatTime } from '../../src/utils/format';
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 function DetailRow({ label, value }: { label: string; value?: string | null }) {
   if (!value) return null;
@@ -25,19 +31,18 @@ function DetailRow({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-function formatCurrency(v: number | null | undefined) {
-  if (v == null) return null;
-  return `HK$${v.toFixed(2)}`;
-}
+// ---------------------------------------------------------------------------
+// Screen
+// ---------------------------------------------------------------------------
 
 export default function ReceiptDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const insets = useSafeAreaInsets();
+  const insets  = useSafeAreaInsets();
 
   const { data: receipt, isLoading, error, refetch } = useQuery({
     queryKey: ['receipt', id],
-    queryFn: () => receiptsApi.detail(id),
-    enabled: !!id,
+    queryFn:  () => receiptsApi.detail(id),
+    enabled:  !!id,
     refetchInterval: (q) => {
       const status = q.state.data?.ocr_status;
       return status === 'processing' || status == null ? 5000 : false;
@@ -98,7 +103,7 @@ export default function ReceiptDetailScreen() {
 
       {/* Merchant summary */}
       {receipt.merchant_name && (
-        <View style={styles.card}>
+        <Card>
           <Text style={styles.merchantName}>{receipt.merchant_name}</Text>
           {receipt.merchant_address && (
             <Text style={styles.merchantAddr}>{receipt.merchant_address}</Text>
@@ -106,25 +111,25 @@ export default function ReceiptDetailScreen() {
           {receipt.total != null && (
             <Text style={styles.totalAmount}>{formatCurrency(receipt.total)}</Text>
           )}
-        </View>
+        </Card>
       )}
 
       {/* Details */}
-      <View style={styles.card}>
+      <Card>
         <Text style={styles.sectionTitle}>Details</Text>
-        <DetailRow label="Date" value={receipt.transaction_date} />
-        <DetailRow label="Time" value={receipt.transaction_time} />
+        <DetailRow label="Date"    value={formatDate(receipt.transaction_date)} />
+        <DetailRow label="Time"    value={formatTime(receipt.transaction_time)} />
         <DetailRow label="Category" value={receipt.category} />
         <DetailRow label="Payment" value={receipt.payment_method} />
         <View style={styles.rowDivider} />
         <DetailRow label="Subtotal" value={formatCurrency(receipt.subtotal)} />
-        <DetailRow label="Tax" value={formatCurrency(receipt.tax)} />
-        <DetailRow label="Total" value={formatCurrency(receipt.total)} />
-      </View>
+        <DetailRow label="Tax"      value={formatCurrency(receipt.tax)} />
+        <DetailRow label="Total"    value={formatCurrency(receipt.total)} />
+      </Card>
 
       {/* Line items */}
-      {receipt.line_items && receipt.line_items.length > 0 && (
-        <View style={styles.card}>
+      {receipt.line_items?.length > 0 && (
+        <Card>
           <Text style={styles.sectionTitle}>Items</Text>
           {receipt.line_items.map((item, i) => (
             <View key={i} style={styles.lineItem}>
@@ -139,10 +144,10 @@ export default function ReceiptDetailScreen() {
               )}
             </View>
           ))}
-        </View>
+        </Card>
       )}
 
-      {/* Confidence */}
+      {/* OCR confidence */}
       {receipt.ocr_confidence != null && (
         <View style={styles.confidenceRow}>
           <Ionicons name="sparkles-outline" size={12} color={colors.text3} />
@@ -155,10 +160,22 @@ export default function ReceiptDetailScreen() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.xl, gap: spacing.md },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, backgroundColor: colors.bg, gap: spacing.md },
+  content:   { padding: spacing.xl, gap: spacing.md },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+    backgroundColor: colors.bg,
+    gap: spacing.md,
+  },
+
   imageWrap: {
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
@@ -169,6 +186,7 @@ const styles = StyleSheet.create({
     ...shadow.md,
   },
   image: { width: '100%', height: '100%' },
+
   processingBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -180,33 +198,37 @@ const styles = StyleSheet.create({
     borderColor: colors.primary + '33',
   },
   processingText: { color: colors.primary, fontSize: 13, fontWeight: '600' },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadow.sm,
-  },
+
+  merchantTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.sm },
+  merchantLeft: { flex: 1 },
   merchantName: { fontSize: 20, fontWeight: '800', color: colors.text1, letterSpacing: -0.3 },
-  merchantAddr: { fontSize: 12, color: colors.text2 },
-  totalAmount: { fontSize: 32, fontWeight: '800', color: colors.primary, marginTop: spacing.xs, letterSpacing: -1 },
-  sectionTitle: { fontSize: 11, fontWeight: '700', color: colors.text3, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: spacing.xs },
+  merchantAddr: { fontSize: 12, color: colors.text2, marginTop: 3 },
+  totalAmount:  { fontSize: 34, fontWeight: '800', color: colors.primary, marginTop: spacing.sm, letterSpacing: -1 },
+
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.text3,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: spacing.xs,
+  },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.xs },
   rowLabel: { fontSize: 13, color: colors.text2 },
-  rowValue: { fontSize: 13, fontWeight: '600', color: colors.text1 },
+  rowValue:  { fontSize: 13, fontWeight: '600', color: colors.text1 },
   rowDivider: { height: 1, backgroundColor: colors.divider, marginVertical: spacing.xs },
+
   lineItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     paddingVertical: spacing.xs,
   },
-  lineItemLeft: { flex: 1, gap: 2 },
-  lineItemName: { fontSize: 13, color: colors.text1 },
-  lineItemQty: { fontSize: 11, color: colors.text3 },
+  lineItemLeft:  { flex: 1, gap: 2 },
+  lineItemName:  { fontSize: 13, color: colors.text1 },
+  lineItemQty:   { fontSize: 11, color: colors.text3 },
   lineItemPrice: { fontSize: 13, fontWeight: '600', color: colors.text1, fontVariant: ['tabular-nums'] },
+
   confidenceRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -215,7 +237,8 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   confidenceText: { color: colors.text3, fontSize: 11 },
-  errText: { color: colors.error, fontSize: 14, textAlign: 'center' },
+
+  errText:  { color: colors.error, fontSize: 14, textAlign: 'center' },
   retryBtn: {
     backgroundColor: colors.primary,
     borderRadius: radius.md,
