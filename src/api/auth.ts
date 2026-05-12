@@ -1,7 +1,7 @@
 /**
  * Authentication API adapter.
  *
- * Endpoints: login, register, email availability, token refresh, me, logout.
+ * Endpoints: login, register, email availability, token refresh, me, logout, changePassword.
  * When DEMO_MODE is true every call resolves with fixture data.
  */
 import { request } from './client';
@@ -14,7 +14,6 @@ import type {
   RegisterPayload,
 } from '../types';
 
-// Re-export types for consumers that import from this module
 export type { AuthResponse, EmailAvailabilityResponse, LoginPayload, RegisterPayload };
 
 export const authApi = {
@@ -62,5 +61,13 @@ export const authApi = {
   logout: (): Promise<void> => {
     if (DEMO_MODE) return Promise.resolve();
     return request<void>('/api/auth/logout', { method: 'POST' });
+  },
+
+  changePassword: (currentPassword: string, newPassword: string): Promise<void> => {
+    if (DEMO_MODE) return new Promise((res) => setTimeout(() => res(), 600));
+    return request<void>('/api/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    });
   },
 };

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
-import { colors, radius } from '../../theme/tokens';
+import { useTheme } from '../../hooks/useTheme';
+import { radius } from '../../theme/tokens';
 
 interface SkeletonProps {
   width?: number | `${number}%`;
@@ -10,6 +11,7 @@ interface SkeletonProps {
 }
 
 export function Skeleton({ width = '100%', height = 16, borderRadius = radius.sm, style }: SkeletonProps) {
+  const { colors } = useTheme();
   const opacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
@@ -27,14 +29,13 @@ export function Skeleton({ width = '100%', height = 16, borderRadius = radius.sm
     <Animated.View
       style={[
         styles.base,
-        { width: width as never, height, borderRadius, opacity },
+        { width: width as never, height, borderRadius, backgroundColor: colors.surfaceHigh, opacity },
         style,
       ]}
     />
   );
 }
 
-/** Convenience: a row of skeleton lines imitating a receipt card. */
 export function ReceiptCardSkeleton() {
   return (
     <View style={styles.card}>
@@ -49,13 +50,7 @@ export function ReceiptCardSkeleton() {
 }
 
 const styles = StyleSheet.create({
-  base: { backgroundColor: colors.surfaceHigh },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 12,
-  },
+  base:     {},
+  card:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
   cardBody: { flex: 1 },
 });

@@ -11,6 +11,7 @@ import {
   getDemoTopMerchants,
   getDemoCategoryBreakdown,
   getDemoInsights,
+  getDemoTrends,
 } from '../constants/fixtures';
 import type {
   CategoryBreakdownResponse,
@@ -20,7 +21,6 @@ import type {
   TopMerchantsResponse,
 } from '../types';
 
-// Re-export types consumed by screens / tests
 export type {
   CategoryBreakdownResponse,
   InsightsResponse,
@@ -47,26 +47,13 @@ export const analyticsApi = {
     return authedRequest<SpendingSummary>(`/user/spending/summary?days=${days}`);
   },
 
-  trends: (params: { interval?: string; periods?: number } = {}): Promise<SpendingTrendsResponse> => {
-    if (DEMO_MODE) {
-      // Return a minimal trends shape from fixture data
-      return new Promise((res) =>
-        setTimeout(
-          () =>
-            res({
-              user_id: 1,
-              interval: params.interval ?? 'monthly',
-              trends: [],
-            }),
-          350,
-        ),
-      );
-    }
-    const q = new URLSearchParams({
-      interval: params.interval ?? 'monthly',
-      periods: String(params.periods ?? 6),
-    });
-    return authedRequest<SpendingTrendsResponse>(`/user/spending/trends?${q}`);
+  trendsForDays: (days: number): Promise<SpendingTrendsResponse> => {
+    if (DEMO_MODE) return new Promise((res) => setTimeout(() => res(getDemoTrends(days)), 350));
+    const interval = days <= 30 ? 'daily' : 'weekly';
+    const periods = days <= 30 ? days : Math.ceil(days / 7);
+    return authedRequest<SpendingTrendsResponse>(
+      `/user/spending/trends?interval=${interval}&periods=${periods}`,
+    );
   },
 
   topMerchants: (days = 30, limit = 10): Promise<TopMerchantsResponse> => {

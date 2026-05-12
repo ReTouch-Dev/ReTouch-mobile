@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -17,19 +17,36 @@ import { useAuthStore } from '../../src/store/authStore';
 import { ApiError } from '../../src/api/client';
 import { Button, Input } from '../../src/components/ui';
 import { Logo } from '../../src/components/Logo';
-import { colors, spacing, radius } from '../../src/theme/tokens';
+import { useTheme, type Colors } from '../../src/hooks/useTheme';
+import { radius, spacing } from '../../src/theme/tokens';
 
 const schema = z.object({
   email:    z.string().email('Enter a valid email'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
 });
-
 type FormData = z.infer<typeof schema>;
+
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    container:       { flex: 1, backgroundColor: colors.bg },
+    inner:           { flex: 1, paddingHorizontal: spacing['2xl'], justifyContent: 'center', gap: spacing.xl },
+    logoArea:        { alignItems: 'center', gap: spacing.sm, marginBottom: spacing.lg },
+    tagline:         { fontSize: 14, color: colors.text2, letterSpacing: 0.2 },
+    form:            { gap: spacing.lg },
+    errorBanner:     { backgroundColor: colors.error + '22', borderRadius: radius.md, padding: spacing.md, borderWidth: 1, borderColor: colors.error + '44' },
+    errorBannerText: { color: colors.error, fontSize: 13, textAlign: 'center' },
+    footer:          { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
+    footerText:      { color: colors.text2, fontSize: 14 },
+    footerLink:      { color: colors.primary, fontSize: 14, fontWeight: '700' },
+  });
+}
 
 export default function LoginScreen() {
   const { login } = useAuthStore();
   const router    = useRouter();
   const insets    = useSafeAreaInsets();
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [loading,   setLoading]   = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -56,105 +73,40 @@ export default function LoginScreen() {
       style={[styles.container, { paddingTop: insets.top }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
-
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.bg} />
       <View style={styles.inner}>
-        {/* Logo */}
         <View style={styles.logoArea}>
           <Logo size="lg" />
           <Text style={styles.tagline}>Your smart receipt wallet</Text>
         </View>
-
-        {/* Form */}
         <View style={styles.form}>
-          <Controller
-            control={control}
-            name="email"
+          <Controller control={control} name="email"
             render={({ field: { onChange, onBlur, value } }) => (
-              <Input
-                label="Email"
-                onChangeText={onChange}
-                onBlur={onBlur}
-                value={value ?? ''}
-                placeholder="you@example.com"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-                leftIcon="mail-outline"
-                error={errors.email?.message}
-              />
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="password"
+              <Input label="Email" onChangeText={onChange} onBlur={onBlur} value={value ?? ''}
+                placeholder="you@example.com" keyboardType="email-address" autoComplete="email"
+                leftIcon="mail-outline" error={errors.email?.message} />
+            )} />
+          <Controller control={control} name="password"
             render={({ field: { onChange, onBlur, value } }) => (
-              <Input
-                label="Password"
-                onChangeText={onChange}
-                onBlur={onBlur}
-                value={value ?? ''}
-                placeholder="••••••••"
-                secureTextEntry
-                autoComplete="password"
-                leftIcon="lock-closed-outline"
-                error={errors.password?.message}
-              />
-            )}
-          />
-
+              <Input label="Password" onChangeText={onChange} onBlur={onBlur} value={value ?? ''}
+                placeholder="••••••••" secureTextEntry autoComplete="password"
+                leftIcon="lock-closed-outline" error={errors.password?.message} />
+            )} />
           {formError ? (
             <View style={styles.errorBanner}>
               <Text style={styles.errorBannerText}>{formError}</Text>
             </View>
           ) : null}
-
-          <Button
-            label="Sign in"
-            onPress={handleSubmit(onSubmit)}
-            loading={loading}
-            fullWidth
-            size="lg"
-            icon="arrow-forward"
-            iconPosition="right"
-          />
+          <Button label="Sign in" onPress={handleSubmit(onSubmit)} loading={loading}
+            fullWidth size="lg" icon="arrow-forward" iconPosition="right" />
         </View>
-
-        {/* Footer */}
         <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.lg }]}>
           <Text style={styles.footerText}>Don't have an account? </Text>
           <Link href="/auth/register" asChild>
-            <TouchableOpacity>
-              <Text style={styles.footerLink}>Sign up</Text>
-            </TouchableOpacity>
+            <TouchableOpacity><Text style={styles.footerLink}>Sign up</Text></TouchableOpacity>
           </Link>
         </View>
       </View>
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  inner: {
-    flex: 1,
-    paddingHorizontal: spacing['2xl'],
-    justifyContent: 'center',
-    gap: spacing.xl,
-  },
-  logoArea: { alignItems: 'center', gap: spacing.sm, marginBottom: spacing.lg },
-  tagline: { fontSize: 14, color: colors.text2, letterSpacing: 0.2 },
-  form: { gap: spacing.lg },
-  errorBanner: {
-    backgroundColor: colors.error + '22',
-    borderRadius: radius.md,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.error + '44',
-  },
-  errorBannerText: { color: colors.error, fontSize: 13, textAlign: 'center' },
-  footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  footerText: { color: colors.text2, fontSize: 14 },
-  footerLink: { color: colors.primary, fontSize: 14, fontWeight: '700' },
-});

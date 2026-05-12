@@ -13,6 +13,8 @@ import type {
   ReceiptListResponse,
   ReceiptDetail,
   SpendingSummary,
+  SpendingTrend,
+  SpendingTrendsResponse,
   TopMerchantsResponse,
   CategoryBreakdownResponse,
   InsightsResponse,
@@ -275,13 +277,13 @@ function toListItem(d: ReceiptDetail): import('../types').ReceiptListItem {
   };
 }
 
-export function getDemoReceiptList(params: {
-  page?: number;
-  limit?: number;
-  search?: string;
-}): ReceiptListResponse {
+export function getDemoReceiptList(
+  params: { page?: number; limit?: number; search?: string },
+  extraDetails: ReceiptDetail[] = [],
+): ReceiptListResponse {
   const { page = 1, limit = 30, search = '' } = params;
-  const filtered = DETAILS_ARRAY.filter((r) =>
+  const all = [...extraDetails, ...DETAILS_ARRAY];
+  const filtered = all.filter((r) =>
     !search || r.merchant_name?.toLowerCase().includes(search.toLowerCase()),
   );
   const total = filtered.length;
@@ -411,4 +413,47 @@ export function getDemoInsights(days: number): InsightsResponse {
     pending: false,
     fallback_reason: null,
   };
+}
+
+export function getDemoTrends(days: number): SpendingTrendsResponse {
+  const now = new Date();
+  const trends: SpendingTrend[] = [];
+
+  if (days <= 30) {
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().slice(0, 10);
+      const dayItems = DETAILS_ARRAY.filter((r) => r.transaction_date === dateStr);
+      const total = dayItems.reduce((s, r) => s + (r.total ?? 0), 0);
+      trends.push({
+        period: `${d.getMonth() + 1}/${d.getDate()}`,
+        total_spent: parseFloat(total.toFixed(2)),
+        receipt_count: dayItems.length,
+        average_transaction: dayItems.length ? parseFloat((total / dayItems.length).toFixed(2)) : 0,
+      });
+    }
+  } else {
+    const weeks = Math.ceil(days / 7);
+    for (let w = weeks - 1; w >= 0; w--) {
+      const wEnd = new Date(now);
+      wEnd.setDate(wEnd.getDate() - w * 7);
+      const wStart = new Date(wEnd);
+      wStart.setDate(wStart.getDate() - 6);
+      const wItems = DETAILS_ARRAY.filter((r) => {
+        if (!r.transaction_date) return false;
+        const d = new Date(r.transaction_date);
+        return d >= wStart && d <= wEnd;
+      });
+      const total = wItems.reduce((s, r) => s + (r.total ?? 0), 0);
+      trends.push({
+        period: `W${weeks - w}`,
+        total_spent: parseFloat(total.toFixed(2)),
+        receipt_count: wItems.length,
+        average_transaction: wItems.length ? parseFloat((total / wItems.length).toFixed(2)) : 0,
+      });
+    }
+  }
+
+  return { user_id: DEMO_USER_ID, interval: days <= 30 ? 'daily' : 'weekly', trends };
 }
