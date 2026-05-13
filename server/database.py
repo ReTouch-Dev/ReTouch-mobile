@@ -54,7 +54,7 @@ def _cleanup_stuck_receipts(db: SQLAlchemy) -> None:
             "(SELECT id FROM receipt_data WHERE extraction_status = 'processing')"
         ))
         conn.execute(text("DELETE FROM receipt_data WHERE extraction_status = 'processing'"))
-        conn.execute(text("DELETE FROM receipts WHERE upload_status = 'processing'"))
+        conn.execute(text("DELETE FROM receipts WHERE upload_status = 'PROCESSING'"))
         conn.execute(text(
             "DELETE FROM receipts WHERE id NOT IN (SELECT receipt_id FROM receipt_data)"
         ))
