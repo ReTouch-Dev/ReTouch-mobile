@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -29,7 +30,7 @@ type FormData = z.infer<typeof schema>;
 function createStyles(colors: Colors) {
   return StyleSheet.create({
     container:       { flex: 1, backgroundColor: colors.bg },
-    inner:           { flex: 1, paddingHorizontal: spacing['2xl'], justifyContent: 'center', gap: spacing.xl },
+    inner:           { flexGrow: 1, paddingHorizontal: spacing['2xl'], justifyContent: 'center', gap: spacing.xl },
     logoArea:        { alignItems: 'center', gap: spacing.sm, marginBottom: spacing.lg },
     tagline:         { fontSize: 14, color: colors.text2, letterSpacing: 0.2 },
     form:            { gap: spacing.lg },
@@ -74,7 +75,11 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.bg} />
-      <View style={styles.inner}>
+      <ScrollView
+        contentContainerStyle={styles.inner}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.logoArea}>
           <Logo size="lg" />
           <Text style={styles.tagline}>Your smart receipt wallet</Text>
@@ -106,7 +111,7 @@ export default function LoginScreen() {
             <TouchableOpacity><Text style={styles.footerLink}>Sign up</Text></TouchableOpacity>
           </Link>
         </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
