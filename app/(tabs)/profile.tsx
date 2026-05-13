@@ -1,3 +1,15 @@
+/**
+ * Profile screen.
+ *
+ * Displays the authenticated user's info and provides:
+ *   - Password change
+ *   - Dark mode toggle (persisted to SecureStore)
+ *   - Home currency selection (synced to server)
+ *   - Receipt export (JSON or CSV)
+ *     - Web:    browser file download via anchor element
+ *     - Native: share sheet via expo-file-system + expo-sharing
+ *   - Sign-out with confirmation
+ */
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,6 +28,8 @@ import {
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { useAuthStore } from '../../src/store/authStore';
 import { Avatar, Card } from '../../src/components/ui';
 import { useTheme, type Colors } from '../../src/hooks/useTheme';
@@ -62,7 +76,7 @@ function createStyles(colors: Colors) {
     version:         { textAlign: 'center', color: colors.text3, fontSize: 12 },
     versionWrap:     { alignItems: 'center', paddingTop: spacing['2xl'] },
 
-    // Currency picker modal
+    // Currency picker bottom sheet
     modalOverlay:    { flex: 1, backgroundColor: '#00000066', justifyContent: 'flex-end' },
     modalSheet:      { backgroundColor: colors.bg, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, maxHeight: '70%', paddingBottom: spacing.xl },
     modalHandle:     { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginTop: spacing.md, marginBottom: spacing.sm },
@@ -112,14 +126,16 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { colors, isDark, toggle: toggleTheme } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const [logoutLoading,    setLogoutLoading]    = useState(false);
-  const [confirming,       setConfirming]       = useState(false);
-  const [exporting,        setExporting]        = useState(false);
-  const [currencyPicker,   setCurrencyPicker]   = useState(false);
-  const [savingCurrency,   setSavingCurrency]   = useState(false);
+  const [logoutLoading,  setLogoutLoading]  = useState(false);
+  const [confirming,     setConfirming]     = useState(false);
+  const [exporting,      setExporting]      = useState(false);
+  const [currencyPicker, setCurrencyPicker] = useState(false);
+  const [savingCurrency, setSavingCurrency] = useState(false);
 
   useEffect(() => {
     if (!DEMO_MODE) fetchPrefs();
+  // fetchPrefs is stable (Zustand action) — safe to omit from deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const selectCurrency = async (code: string) => {
@@ -134,9 +150,9 @@ export default function ProfileScreen() {
     }
   };
 
-  const initial = getInitial(user?.full_name ?? user?.email, '?');
-  const memberSince = user?.id
-    ? new Date(2026, 0, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  const initial     = getInitial(user?.full_name ?? user?.email, '?');
+  const memberSince = user?.created_at
+    ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
     : '';
 
   const handleLogout = async () => {
@@ -153,12 +169,13 @@ export default function ProfileScreen() {
     setExporting(true);
     try {
       const response = await download(`/api/mobile/receipts/export?format=${format}`);
-      const blob = await response.blob();
 
       if (Platform.OS === 'web') {
-        const url = URL.createObjectURL(blob);
+        // Browser: create a temporary anchor and click it to trigger download
+        const blob   = await response.blob();
+        const url    = URL.createObjectURL(blob);
         const anchor = document.createElement('a');
-        anchor.href = url;
+        anchor.href  = url;
         anchor.download = `receipts.${format}`;
         anchor.style.display = 'none';
         document.body.appendChild(anchor);
@@ -166,7 +183,17 @@ export default function ProfileScreen() {
         document.body.removeChild(anchor);
         setTimeout(() => URL.revokeObjectURL(url), 150);
       } else {
-        Alert.alert('Export ready', 'Open the app in a browser to download your receipts file.');
+        // Native: write to temp file then open the system share sheet
+        const text    = await response.text();
+        const fileUri = `${FileSystem.cacheDirectory}receipts.${format}`;
+        await FileSystem.writeAsStringAsync(fileUri, text, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+        await Sharing.shareAsync(fileUri, {
+          mimeType:    format === 'csv' ? 'text/csv' : 'application/json',
+          dialogTitle: 'Export Receipts',
+          UTI:         format === 'csv' ? 'public.comma-separated-values-text' : 'public.json',
+        });
       }
     } catch {
       Alert.alert('Export failed', 'Could not export receipts. Please try again.');
@@ -186,7 +213,7 @@ export default function ProfileScreen() {
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'JSON', onPress: () => triggerExport('json') },
-        { text: 'CSV',  onPress: () => triggerExport('csv') },
+        { text: 'CSV',  onPress: () => triggerExport('csv')  },
       ],
     );
   };
@@ -199,9 +226,9 @@ export default function ProfileScreen() {
     >
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.bg} />
 
-      {/* Header */}
+      {/* Header — icon only (no wordmark) */}
       <View style={styles.header}>
-        <Logo size="sm" />
+        <Logo size="sm" iconOnly />
       </View>
 
       {/* Avatar card */}
@@ -295,7 +322,7 @@ export default function ProfileScreen() {
         <MenuItem icon="shield-checkmark-outline" label="Privacy Policy" />
       </Card>
 
-      {/* Danger */}
+      {/* Session */}
       <Text style={styles.sectionLabel}>Session</Text>
       <Card style={styles.menu} padding="none">
         <MenuItem

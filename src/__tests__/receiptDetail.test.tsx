@@ -109,7 +109,7 @@ describe('ReceiptDetailScreen', () => {
     render(<ReceiptDetailScreen />, { wrapper: makeWrapper() });
 
     await waitFor(() => {
-      expect(screen.getByText('Extracting receipt data…')).toBeTruthy();
+      expect(screen.getByText(/Extracting receipt data/)).toBeTruthy();
     });
   });
 

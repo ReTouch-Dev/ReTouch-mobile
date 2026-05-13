@@ -14,6 +14,7 @@ export interface User {
   id: number;
   email: string;
   full_name: string | null;
+  created_at?: string;
   is_active?: boolean;
   is_verified?: boolean;
 }
@@ -48,7 +49,7 @@ export interface OCRSummary {
   merchant: string | null;
   date: string | null;
   total: number | null;
-  currency: string | null;
+  currency?: string | null;
   confidence: number | null;
 }
 
@@ -90,7 +91,7 @@ export interface ReceiptDetail {
   merchant_phone: string | null;
   transaction_date: string | null;
   transaction_time: string | null;
-  currency: string | null;
+  currency?: string | null;
   subtotal: number | null;
   tax: number | null;
   total: number | null;
@@ -114,7 +115,7 @@ export interface UploadResponse {
 
 export interface SpendingSummary {
   user_id: number;
-  display_currency: string;
+  display_currency?: string;
   total_receipts: number;
   total_spent: number;
   average_transaction: number;

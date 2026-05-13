@@ -8,6 +8,8 @@ import * as ImagePicker from 'expo-image-picker';
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn() }),
+  // useFocusEffect is called on tab focus — no-op in unit tests
+  useFocusEffect: jest.fn(),
 }));
 jest.mock('@expo/vector-icons', () => ({
   Ionicons: () => null,

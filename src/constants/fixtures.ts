@@ -63,6 +63,7 @@ const R = (
   merchant_phone: null,
   transaction_date: date,
   transaction_time: '12:30:00',
+  currency: 'HKD',
   subtotal: parseFloat((total / 1.1).toFixed(2)),
   tax: parseFloat((total - total / 1.1).toFixed(2)),
   total,
@@ -272,6 +273,7 @@ function toListItem(d: ReceiptDetail): import('../types').ReceiptListItem {
       merchant: d.merchant_name,
       date: d.transaction_date,
       total: d.total,
+      currency: d.currency,
       confidence: d.ocr_confidence,
     },
   };
@@ -306,6 +308,7 @@ function summaryFor(days: number): SpendingSummary {
   const total_receipts = relevant.length;
   return {
     user_id: DEMO_USER_ID,
+    display_currency: 'HKD',
     total_receipts,
     total_spent: parseFloat(total_spent.toFixed(2)),
     average_transaction: total_receipts ? parseFloat((total_spent / total_receipts).toFixed(2)) : 0,

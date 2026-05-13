@@ -106,7 +106,7 @@ export default function LoginScreen() {
             fullWidth size="lg" icon="arrow-forward" iconPosition="right" />
         </View>
         <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.lg }]}>
-          <Text style={styles.footerText}>Don't have an account? </Text>
+          <Text style={styles.footerText}>{"Don't have an account? "}</Text>
           <Link href="/auth/register" asChild>
             <TouchableOpacity><Text style={styles.footerLink}>Sign up</Text></TouchableOpacity>
           </Link>

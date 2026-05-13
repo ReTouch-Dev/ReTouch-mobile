@@ -109,7 +109,7 @@ export default function CaptureScreen() {
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.bg} />
       <View style={styles.header}>
         <Text style={styles.title}>Scan Receipt</Text>
-        <Text style={styles.subtitle}>Camera or gallery — we'll extract the data</Text>
+        <Text style={styles.subtitle}>{"Camera or gallery — we'll extract the data"}</Text>
       </View>
       <View style={styles.body}>
         {imageUri ? (

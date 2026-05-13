@@ -48,6 +48,7 @@ function makeDemoReceipt(id: string, imageUri: string): ReceiptDetail {
     merchant_phone: null,
     transaction_date: new Date().toISOString().slice(0, 10),
     transaction_time: new Date().toTimeString().slice(0, 8),
+    currency: 'HKD',
     subtotal: parseFloat((total / 1.1).toFixed(2)),
     tax: parseFloat((total - total / 1.1).toFixed(2)),
     total,

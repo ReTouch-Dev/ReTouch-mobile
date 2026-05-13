@@ -1,5 +1,9 @@
 /**
  * Unit tests for analyticsApi — all 5 endpoints, demo + real modes.
+ *
+ * Analytics now uses the shared `request` client from client.ts so mock
+ * responses must include a Headers-compatible `headers.get` method and
+ * error messages come from client.ts (ApiError / UnauthorizedError).
  */
 import { analyticsApi } from '../api/analytics';
 import * as demo from '../lib/demo';
@@ -16,17 +20,22 @@ function setDemoMode(val: boolean) {
   Object.defineProperty(demo, 'DEMO_MODE', { value: val, configurable: true });
 }
 
+/** Helper: resolve with a successful JSON response. */
 function mockFetchOk(body: unknown) {
   mockFetch.mockResolvedValueOnce({
     ok: true,
+    status: 200,
+    headers: { get: (_key: string) => 'application/json' },
     json: async () => body,
   });
 }
 
+/** Helper: resolve with an error response that includes a JSON body. */
 function mockFetchError(status: number) {
   mockFetch.mockResolvedValueOnce({
     ok: false,
     status,
+    headers: { get: (_key: string) => 'application/json' },
     json: async () => ({ message: `Error ${status}` }),
   });
 }
@@ -106,12 +115,12 @@ describe('analyticsApi — demo mode', () => {
 describe('analyticsApi — real mode', () => {
   beforeEach(() => { setDemoMode(false); jest.clearAllMocks(); });
 
-  it('summary fetches /user/spending/summary with days param', async () => {
+  it('summary fetches /analytics/user/spending/summary with days param', async () => {
     mockFetchOk(MOCK_SUMMARY);
     const res = await analyticsApi.summary(30);
     expect(res.total_spent).toBe(1000);
     const url = mockFetch.mock.calls[0][0] as string;
-    expect(url).toContain('/user/spending/summary');
+    expect(url).toContain('/analytics/user/spending/summary');
     expect(url).toContain('days=30');
   });
 
@@ -136,37 +145,40 @@ describe('analyticsApi — real mode', () => {
     expect(url).toContain('interval=weekly');
   });
 
-  it('topMerchants fetches /user/merchants/top with limit', async () => {
+  it('topMerchants fetches /analytics/user/merchants/top with limit', async () => {
     mockFetchOk(MOCK_MERCHANTS);
     await analyticsApi.topMerchants(30, 5);
     const url = mockFetch.mock.calls[0][0] as string;
-    expect(url).toContain('/user/merchants/top');
+    expect(url).toContain('/analytics/user/merchants/top');
     expect(url).toContain('limit=5');
   });
 
-  it('categoryBreakdown fetches /user/categories/breakdown', async () => {
+  it('categoryBreakdown fetches /analytics/user/categories/breakdown', async () => {
     mockFetchOk(MOCK_CATEGORIES);
     await analyticsApi.categoryBreakdown(7);
     const url = mockFetch.mock.calls[0][0] as string;
-    expect(url).toContain('/user/categories/breakdown');
+    expect(url).toContain('/analytics/user/categories/breakdown');
     expect(url).toContain('days=7');
   });
 
-  it('insights fetches /user/insights', async () => {
+  it('insights fetches /analytics/user/insights', async () => {
     mockFetchOk(MOCK_INSIGHTS);
     const res = await analyticsApi.insights(30);
     expect(res.insights[0].headline).toBe('Test');
     const url = mockFetch.mock.calls[0][0] as string;
-    expect(url).toContain('/user/insights');
+    expect(url).toContain('/analytics/user/insights');
   });
 
-  it('throws on non-ok response', async () => {
+  it('throws ApiError with server message on non-ok response', async () => {
     mockFetchError(500);
-    await expect(analyticsApi.summary(30)).rejects.toThrow('Analytics 500');
+    await expect(analyticsApi.summary(30)).rejects.toThrow('Error 500');
   });
 
-  it('throws on 401', async () => {
+  it('throws UnauthorizedError on 401 after refresh also fails', async () => {
+    // First call: analytics endpoint returns 401
     mockFetchError(401);
-    await expect(analyticsApi.insights(30)).rejects.toThrow('Analytics 401');
+    // Second call: token refresh endpoint also returns 401 (refresh invalid)
+    mockFetchError(401);
+    await expect(analyticsApi.insights(30)).rejects.toThrow('Unauthorized');
   });
 });

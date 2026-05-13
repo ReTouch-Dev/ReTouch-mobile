@@ -1,3 +1,14 @@
+/**
+ * Receipts screen.
+ *
+ * Displays a paginated, searchable list of receipts. Results accumulate as
+ * the user scrolls (infinite scroll via useInfiniteQuery). Pull-to-refresh
+ * re-fetches from page 1.
+ *
+ * Each card shows the OCR-extracted merchant name, relative date, and amount
+ * (or a "Processing" badge if OCR hasn't completed yet). Tapping a card
+ * navigates to the receipt detail screen.
+ */
 import { useMemo, useState, useCallback } from 'react';
 import {
   FlatList,
@@ -8,10 +19,11 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { receiptsApi, type ReceiptListItem } from '../../src/api/receipts';
 import { Avatar, Badge, EmptyState, ReceiptCardSkeleton } from '../../src/components/ui';
@@ -48,18 +60,19 @@ function createStyles(colors: Colors) {
     errText:     { color: colors.error, fontSize: 14 },
     retryBtn:    { backgroundColor: colors.primary, borderRadius: radius.sm, paddingVertical: spacing.sm, paddingHorizontal: spacing.xl },
     retryText:   { color: colors.bg, fontWeight: '600', fontSize: 13 },
+    loadingMore: { paddingVertical: spacing.lg, alignItems: 'center' },
   });
 }
 
 function ReceiptCard({ item }: { item: ReceiptListItem }) {
   const router = useRouter();
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-  const merchant = item.ocr?.merchant ?? 'Receipt';
-  const total = item.ocr?.total != null ? formatCurrency(item.ocr.total, item.ocr.currency) : null;
-  const date = formatRelativeDate(item.ocr?.date ?? item.created_at);
+  const styles    = useMemo(() => createStyles(colors), [colors]);
+  const merchant  = item.ocr?.merchant ?? 'Receipt';
+  const total     = item.ocr?.total != null ? formatCurrency(item.ocr.total, item.ocr.currency) : null;
+  const date      = formatRelativeDate(item.ocr?.date ?? item.created_at);
   const isPending = item.upload_status !== 'completed' || item.ocr?.status === 'processing';
-  const initial = getInitial(merchant, 'R');
+  const initial   = getInitial(merchant, 'R');
 
   return (
     <TouchableOpacity
@@ -86,17 +99,36 @@ function ReceiptCard({ item }: { item: ReceiptListItem }) {
 
 export default function ReceiptsScreen() {
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const insets = useSafeAreaInsets();
+  const insets  = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles  = useMemo(() => createStyles(colors), [colors]);
 
-  const { data, isLoading, isRefetching, refetch, error } = useQuery({
-    queryKey: ['receipts', search, page],
-    queryFn: () => receiptsApi.list({ page, limit: 30, search }),
+  const {
+    data,
+    isLoading,
+    isRefetching,
+    refetch,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey:         ['receipts', search],
+    queryFn:          ({ pageParam }) => receiptsApi.list({ page: pageParam as number, limit: 30, search }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => lastPage.has_next ? lastPage.page + 1 : undefined,
   });
 
-  const onRefresh = useCallback(() => { setPage(1); refetch(); }, [refetch]);
+  // Flatten all fetched pages into a single list for FlatList
+  const allReceipts = useMemo(
+    () => data?.pages.flatMap((p) => p.results) ?? [],
+    [data],
+  );
+
+  // Total count comes from the first page (server reports overall total)
+  const total = data?.pages[0]?.total ?? 0;
+
+  const onRefresh = useCallback(() => { refetch(); }, [refetch]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -104,9 +136,9 @@ export default function ReceiptsScreen() {
       <View style={styles.header}>
         <View style={styles.titleRow}>
           <Text style={styles.title}>Receipts</Text>
-          {data?.total != null && data.total > 0 && (
+          {total > 0 && (
             <View style={styles.countBadge}>
-              <Text style={styles.countText}>{data.total}</Text>
+              <Text style={styles.countText}>{total}</Text>
             </View>
           )}
         </View>
@@ -117,7 +149,7 @@ export default function ReceiptsScreen() {
             placeholder="Search by merchant…"
             placeholderTextColor={colors.text3}
             value={search}
-            onChangeText={(t) => { setSearch(t); setPage(1); }}
+            onChangeText={setSearch}
             returnKeyType="search"
           />
           {search.length > 0 && (
@@ -144,24 +176,30 @@ export default function ReceiptsScreen() {
         </View>
       ) : (
         <FlatList
-          data={data?.results ?? []}
+          data={allReceipts}
           keyExtractor={(item) => item.receipt_id}
           renderItem={({ item, index }) => (
             <View style={[
               styles.cardWrapper,
               index === 0 && styles.cardFirst,
-              index === (data?.results.length ?? 0) - 1 && styles.cardLast,
+              index === allReceipts.length - 1 && styles.cardLast,
             ]}>
               <ReceiptCard item={item} />
             </View>
           )}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ListEmptyComponent={<EmptyState icon="🧾" title="No receipts yet" subtitle="Tap Scan to add your first one" />}
+          ListFooterComponent={
+            isFetchingNextPage
+              ? <View style={styles.loadingMore}><ActivityIndicator color={colors.primary} size="small" /></View>
+              : null
+          }
           contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + spacing['2xl'] }]}
           style={{ marginHorizontal: spacing.xl }}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor={colors.primary} />}
-          ListEmptyComponent={<EmptyState icon="🧾" title="No receipts yet" subtitle="Tap Scan to add your first one" />}
-          onEndReached={() => { if (data?.has_next) setPage((p) => p + 1); }}
+          onEndReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }}
           onEndReachedThreshold={0.4}
+          keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         />
       )}
