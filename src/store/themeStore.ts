@@ -8,7 +8,7 @@ interface ThemeState {
 }
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
-  isDark: true,
+  isDark: false,
 
   toggle: () => {
     const isDark = !get().isDark;
@@ -19,7 +19,8 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   hydrate: async () => {
     try {
       const saved = await getSessionItem('theme_mode');
-      if (saved === 'light') set({ isDark: false });
+      if (saved === 'dark') set({ isDark: true });
+      else if (saved === 'light') set({ isDark: false });
     } catch {}
   },
 }));
