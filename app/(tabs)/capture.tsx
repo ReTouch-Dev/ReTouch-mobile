@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
+import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
 import { receiptsApi } from '../../src/api/receipts';
 import { ApiError } from '../../src/api/client';
 import { Button } from '../../src/components/ui';
@@ -82,7 +83,7 @@ export default function CaptureScreen() {
       const mimeType = imageUri.endsWith('.png') ? 'image/png' : 'image/jpeg';
       const response = await receiptsApi.upload(imageUri, mimeType);
       await queryClient.invalidateQueries({ queryKey: ['receipts'] });
-      // Analytics counts change immediately when a receipt is added
+      // Analytics counts update immediately when a new receipt is added
       await queryClient.invalidateQueries({ queryKey: ['a-sum'] });
       await queryClient.invalidateQueries({ queryKey: ['a-mer'] });
       await queryClient.invalidateQueries({ queryKey: ['a-cat'] });
@@ -113,14 +114,15 @@ export default function CaptureScreen() {
       </View>
       <View style={styles.body}>
         {imageUri ? (
-          <View style={styles.previewWrap}>
+          // Spring scale-in when an image is selected — gives physical feedback
+          <Animated.View entering={FadeIn.springify().damping(18).mass(0.9)} style={styles.previewWrap}>
             <Image source={{ uri: imageUri }} style={styles.preview} resizeMode="contain" />
             {state !== 'uploading' && state !== 'success' && (
               <TouchableOpacity style={styles.clearBtn} onPress={reset}>
                 <Ionicons name="close-circle" size={28} color={colors.text1} />
               </TouchableOpacity>
             )}
-          </View>
+          </Animated.View>
         ) : (
           <View style={styles.placeholder}>
             <View style={styles.placeholderIcon}>
@@ -156,20 +158,21 @@ export default function CaptureScreen() {
         )}
 
         {state === 'success' && (
-          <View style={[styles.statusCard, styles.successCard]}>
+          // Checkmark bounces in on upload success
+          <Animated.View entering={ZoomIn.springify().damping(12).mass(0.7)} style={[styles.statusCard, styles.successCard]}>
             <Ionicons name="checkmark-circle" size={32} color={colors.success} />
             <Text style={styles.successText}>Uploaded! Extracting data…</Text>
-          </View>
+          </Animated.View>
         )}
 
         {state === 'error' && (
-          <View style={[styles.statusCard, styles.errorCard]}>
+          <Animated.View entering={FadeIn.duration(250)} style={[styles.statusCard, styles.errorCard]}>
             <Ionicons name="alert-circle" size={28} color={colors.error} />
             <Text style={styles.errorText}>{errorMsg}</Text>
             <TouchableOpacity onPress={reset} style={styles.retryBtn}>
               <Text style={styles.retryText}>Try again</Text>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
         )}
       </View>
     </View>

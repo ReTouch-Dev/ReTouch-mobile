@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { View } from 'react-native';
 import Svg, { Path, Defs, LinearGradient, Stop, Line, Text as SvgText, Circle } from 'react-native-svg';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../../hooks/useTheme';
 
 interface DataPoint { label: string; value: number }
@@ -60,7 +61,8 @@ export function AreaLineChart({ data, width, height = 140, color = '#1BC5E3', fo
     : [0, Math.floor((data.length - 1) / 2), data.length - 1];
 
   return (
-    <View style={{ width, height }}>
+    // Slides up gently from below on first render — feels like data arriving
+    <Animated.View entering={FadeInDown.duration(500).delay(100)} style={{ width, height }}>
       <Svg width={width} height={height}>
         <Defs>
           <LinearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
@@ -105,6 +107,6 @@ export function AreaLineChart({ data, width, height = 140, color = '#1BC5E3', fo
         <Circle cx={points[0].x} cy={points[0].y} r={3} fill={color} />
         <Circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r={3} fill={color} />
       </Svg>
-    </View>
+    </Animated.View>
   );
 }

@@ -99,7 +99,8 @@ describe('AnalyticsScreen', () => {
   it('shows total spent amount in HK$ format', async () => {
     render(<AnalyticsScreen />, { wrapper: makeWrapper() });
     await waitFor(() => {
-      expect(screen.getByText('HK$1,250.75')).toBeTruthy();
+      // Amount appears on both the Overview hero card and the Breakdown donut center
+      expect(screen.getAllByText('HK$1,250.75').length).toBeGreaterThanOrEqual(1);
     });
   });
 

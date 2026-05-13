@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
+import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
 import { useTheme } from '../../hooks/useTheme';
 import { spacing } from '../../theme/tokens';
 
@@ -58,29 +59,32 @@ export function DonutChart({ data, size = 160, centerLabel, centerSub, showLegen
 
   return (
     <View style={styles.wrap}>
-      <View style={{ width: size, height: size }}>
-        <Svg width={size} height={size}>
-          {slices.map((s, i) => (
-            <Path key={i} d={s.path} fill={s.color} />
-          ))}
-          <Circle cx={cx} cy={cy} r={holeR} fill={colors.surface} />
-        </Svg>
-        {(centerLabel || centerSub) && (
-          <View style={[StyleSheet.absoluteFill, styles.center]}>
-            {centerLabel ? (
-              <Text style={[styles.centerLabel, { color: colors.text1 }]} numberOfLines={1}>
-                {centerLabel}
-              </Text>
-            ) : null}
-            {centerSub ? (
-              <Text style={[styles.centerSub, { color: colors.text3 }]}>{centerSub}</Text>
-            ) : null}
-          </View>
-        )}
-      </View>
+      {/* The whole chart pops in with a spring zoom — satisfying on data load */}
+      <Animated.View entering={ZoomIn.springify().damping(14).mass(0.8)}>
+        <View style={{ width: size, height: size }}>
+          <Svg width={size} height={size}>
+            {slices.map((s, i) => (
+              <Path key={i} d={s.path} fill={s.color} />
+            ))}
+            <Circle cx={cx} cy={cy} r={holeR} fill={colors.surface} />
+          </Svg>
+          {(centerLabel || centerSub) && (
+            <View style={[StyleSheet.absoluteFill, styles.center]}>
+              {centerLabel ? (
+                <Text style={[styles.centerLabel, { color: colors.text1 }]} numberOfLines={1}>
+                  {centerLabel}
+                </Text>
+              ) : null}
+              {centerSub ? (
+                <Text style={[styles.centerSub, { color: colors.text3 }]}>{centerSub}</Text>
+              ) : null}
+            </View>
+          )}
+        </View>
+      </Animated.View>
 
       {showLegend && (
-        <View style={styles.legend}>
+        <Animated.View entering={FadeIn.delay(300).duration(400)} style={styles.legend}>
           {data
             .filter((d) => d.value > 0)
             .map((d, i) => (
@@ -91,7 +95,7 @@ export function DonutChart({ data, size = 160, centerLabel, centerSub, showLegen
                 </Text>
               </View>
             ))}
-        </View>
+        </Animated.View>
       )}
     </View>
   );

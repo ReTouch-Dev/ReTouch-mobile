@@ -21,6 +21,7 @@ import {
   View,
   ActivityIndicator,
 } from 'react-native';
+import Animated, { FadeInRight } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useInfiniteQuery } from '@tanstack/react-query';
@@ -179,13 +180,16 @@ export default function ReceiptsScreen() {
           data={allReceipts}
           keyExtractor={(item) => item.receipt_id}
           renderItem={({ item, index }) => (
-            <View style={[
-              styles.cardWrapper,
-              index === 0 && styles.cardFirst,
-              index === allReceipts.length - 1 && styles.cardLast,
-            ]}>
-              <ReceiptCard item={item} />
-            </View>
+            // Cards slide in from right with staggered delay (capped at 10 to avoid long waits on large lists)
+            <Animated.View entering={FadeInRight.delay(Math.min(index, 10) * 40).duration(280)}>
+              <View style={[
+                styles.cardWrapper,
+                index === 0 && styles.cardFirst,
+                index === allReceipts.length - 1 && styles.cardLast,
+              ]}>
+                <ReceiptCard item={item} />
+              </View>
+            </Animated.View>
           )}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           ListEmptyComponent={<EmptyState icon="🧾" title="No receipts yet" subtitle="Tap Scan to add your first one" />}
