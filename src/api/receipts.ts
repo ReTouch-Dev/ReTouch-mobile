@@ -6,6 +6,7 @@
  * Uploaded receipts in demo mode are stored in demoReceiptsStore so they
  * appear immediately in the list and detail views.
  */
+import { Platform } from 'react-native';
 import { request } from './client';
 import { DEMO_MODE } from '../lib/demo';
 import {
@@ -85,7 +86,7 @@ export const receiptsApi = {
     return request<ReceiptDetail>(`/api/mobile/receipts/${receiptId}`);
   },
 
-  upload: (imageUri: string, mimeType: string): Promise<UploadResponse> => {
+  upload: async (imageUri: string, mimeType: string): Promise<UploadResponse> => {
     if (DEMO_MODE) {
       const id = `r-demo-new-${Date.now()}`;
       const receipt = makeDemoReceipt(id, imageUri);
@@ -100,12 +101,20 @@ export const receiptsApi = {
       return new Promise((res) => setTimeout(() => res(response), 1200));
     }
     const form = new FormData();
-    form.append('mime_type', mimeType);
-    form.append('receipt', {
-      uri: imageUri,
-      name: 'receipt.jpg',
-      type: mimeType,
-    } as unknown as Blob);
+
+    if (Platform.OS === 'web') {
+      // On web, imageUri is a blob:// URL — fetch it to get the actual File object
+      const fetchRes = await fetch(imageUri);
+      const blob = await fetchRes.blob();
+      const actualMime = (blob.type && blob.type !== 'application/octet-stream') ? blob.type : mimeType;
+      const ext = actualMime.includes('png') ? 'png' : actualMime.includes('webp') ? 'webp' : 'jpg';
+      form.append('mime_type', actualMime);
+      form.append('receipt', new File([blob], `receipt.${ext}`, { type: actualMime }));
+    } else {
+      form.append('mime_type', mimeType);
+      form.append('receipt', { uri: imageUri, name: 'receipt.jpg', type: mimeType } as unknown as Blob);
+    }
+
     return request<UploadResponse>('/api/mobile/receipts', { method: 'POST', body: form });
   },
 };

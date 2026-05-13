@@ -1,22 +1,5 @@
-import { Text, View } from 'react-native';
-import Svg, { Rect, Path } from 'react-native-svg';
+import { Image, View } from 'react-native';
 import { useTheme } from '../hooks/useTheme';
-
-function ReceiptIcon({ size = 32, color }: { size?: number; color: string }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 32 32">
-      <Rect x="4" y="2" width="24" height="24" rx="3" fill={color} />
-      <Rect x="8" y="7" width="10" height="2" rx="1" fill="white" opacity={0.9} />
-      <Rect x="8" y="12" width="16" height="1.5" rx="0.75" fill="white" opacity={0.6} />
-      <Rect x="8" y="16" width="16" height="1.5" rx="0.75" fill="white" opacity={0.6} />
-      <Rect x="8" y="20" width="10" height="1.5" rx="0.75" fill="white" opacity={0.6} />
-      <Path
-        d="M4 26 L7 28.5 L10 26 L13 28.5 L16 26 L19 28.5 L22 26 L25 28.5 L28 26 L28 28 L4 28 Z"
-        fill={color}
-      />
-    </Svg>
-  );
-}
 
 interface LogoProps {
   size?: 'sm' | 'md' | 'lg';
@@ -24,19 +7,37 @@ interface LogoProps {
 }
 
 export function Logo({ size = 'md', iconOnly = false }: LogoProps) {
-  const { colors } = useTheme();
-  const iconSize = size === 'lg' ? 38 : size === 'md' ? 30 : 22;
-  const textSize = size === 'lg' ? 30 : size === 'md' ? 24 : 18;
-  const gap = size === 'lg' ? 12 : size === 'md' ? 10 : 8;
+  const { isDark } = useTheme();
+  const iconSize = size === 'lg' ? 48 : size === 'md' ? 36 : 26;
 
-  if (iconOnly) return <ReceiptIcon size={iconSize} color={colors.primary} />;
+  if (iconOnly) {
+    return (
+      <Image
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        source={require('../../assets/icon.png')}
+        style={{ width: iconSize, height: iconSize }}
+        resizeMode="contain"
+      />
+    );
+  }
+
+  // Horizontal lockup — light/dark variants
+  const logoH = size === 'lg' ? 40 : size === 'md' ? 30 : 22;
+  const logoW = logoH * 4.2; // ~4.2:1 aspect ratio of the horizontal logo
 
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap }}>
-      <ReceiptIcon size={iconSize} color={colors.primary} />
-      <Text style={{ fontSize: textSize, fontWeight: '800', letterSpacing: -0.5, color: colors.text1 }}>
-        <Text style={{ color: colors.primary }}>Re</Text>Touch
-      </Text>
+    <View>
+      <Image
+        source={
+          isDark
+            ? // eslint-disable-next-line @typescript-eslint/no-require-imports
+              require('../../assets/logo-dark.png')
+            : // eslint-disable-next-line @typescript-eslint/no-require-imports
+              require('../../assets/logo-light.png')
+        }
+        style={{ width: logoW, height: logoH }}
+        resizeMode="contain"
+      />
     </View>
   );
 }

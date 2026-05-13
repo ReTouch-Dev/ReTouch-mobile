@@ -3,18 +3,26 @@
  * No React imports, no side-effects — safe to use anywhere.
  */
 
-/** Format a value as Hong Kong dollars. Returns "—" for null/undefined. */
+/** Format a monetary value with the given ISO-4217 currency code (default HKD). */
 export function formatCurrency(
   value: number | null | undefined,
+  currency: string | null | undefined = 'HKD',
   opts: { showSign?: boolean } = {},
 ): string {
   if (value == null) return '—';
-  const formatted = value.toLocaleString('en-HK', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-  const prefix = opts.showSign && value > 0 ? '+' : '';
-  return `${prefix}HK$${formatted}`;
+  const code = currency || 'HKD';
+  let formatted: string;
+  try {
+    formatted = value.toLocaleString('en', {
+      style: 'currency',
+      currency: code,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  } catch {
+    formatted = `${code} ${value.toFixed(2)}`;
+  }
+  return opts.showSign && value > 0 ? `+${formatted}` : formatted;
 }
 
 /** Format an ISO date string. Returns "—" for falsy input. */

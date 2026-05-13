@@ -14,10 +14,18 @@ import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { receiptsApi } from '../../src/api/receipts';
+import { API_BASE } from '../../src/api/client';
 import { Card } from '../../src/components/ui';
 import { useTheme, type Colors } from '../../src/hooks/useTheme';
 import { radius, shadow, spacing } from '../../src/theme/tokens';
 import { formatCurrency, formatDate, formatTime } from '../../src/utils/format';
+
+/** Resolve a potentially relative server URL to an absolute one. */
+function resolveUrl(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return `${API_BASE}${url}`;
+}
 
 function createStyles(colors: Colors) {
   return StyleSheet.create({
@@ -28,6 +36,8 @@ function createStyles(colors: Colors) {
     image:            { width: '100%', height: '100%' },
     processingBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.primaryLight, borderRadius: radius.md, padding: spacing.md, borderWidth: 1, borderColor: colors.primary + '33' },
     processingText:   { color: colors.primary, fontSize: 13, fontWeight: '600' },
+    failedBanner:     { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.error + '12', borderRadius: radius.md, padding: spacing.md, borderWidth: 1, borderColor: colors.error + '33' },
+    failedText:       { flex: 1, color: colors.error, fontSize: 13, fontWeight: '600' },
     merchantName:     { fontSize: 20, fontWeight: '800', color: colors.text1, letterSpacing: -0.3 },
     merchantAddr:     { fontSize: 12, color: colors.text2, marginTop: 3 },
     totalAmount:      { fontSize: 34, fontWeight: '800', color: colors.primary, marginTop: spacing.sm, letterSpacing: -1 },
@@ -98,6 +108,7 @@ export default function ReceiptDetailScreen() {
   }
 
   const isPending = receipt.ocr_status === 'processing' || receipt.ocr_status == null;
+  const isFailed  = receipt.ocr_status === 'failed' || receipt.ocr_status === 'invalid_image';
 
   return (
     <ScrollView
@@ -109,14 +120,25 @@ export default function ReceiptDetailScreen() {
 
       {receipt.image_url && (
         <View style={styles.imageWrap}>
-          <Image source={{ uri: receipt.image_url }} style={styles.image} contentFit="contain" transition={300} />
+          <Image source={{ uri: resolveUrl(receipt.image_url) }} style={styles.image} contentFit="contain" transition={300} />
         </View>
       )}
 
       {isPending && (
         <View style={styles.processingBanner}>
           <ActivityIndicator color={colors.primary} size="small" />
-          <Text style={styles.processingText}>Extracting receipt data…</Text>
+          <Text style={styles.processingText}>Extracting receipt data… check back in a moment</Text>
+        </View>
+      )}
+
+      {isFailed && (
+        <View style={styles.failedBanner}>
+          <Ionicons name="alert-circle-outline" size={18} color={colors.error} />
+          <Text style={styles.failedText}>
+            {receipt.ocr_status === 'invalid_image'
+              ? "This image doesn't look like a receipt. Try uploading a clearer photo."
+              : 'Could not extract data from this receipt. The image was saved but OCR failed.'}
+          </Text>
         </View>
       )}
 
@@ -124,7 +146,7 @@ export default function ReceiptDetailScreen() {
         <Card>
           <Text style={styles.merchantName}>{receipt.merchant_name}</Text>
           {receipt.merchant_address && <Text style={styles.merchantAddr}>{receipt.merchant_address}</Text>}
-          {receipt.total != null && <Text style={styles.totalAmount}>{formatCurrency(receipt.total)}</Text>}
+          {receipt.total != null && <Text style={styles.totalAmount}>{formatCurrency(receipt.total, receipt.currency)}</Text>}
         </Card>
       )}
 
@@ -135,9 +157,9 @@ export default function ReceiptDetailScreen() {
         <DetailRow label="Category" value={receipt.category}                      styles={styles} />
         <DetailRow label="Payment"  value={receipt.payment_method}                styles={styles} />
         <View style={styles.rowDivider} />
-        <DetailRow label="Subtotal" value={formatCurrency(receipt.subtotal)}      styles={styles} />
-        <DetailRow label="Tax"      value={formatCurrency(receipt.tax)}           styles={styles} />
-        <DetailRow label="Total"    value={formatCurrency(receipt.total)}         styles={styles} />
+        <DetailRow label="Subtotal" value={formatCurrency(receipt.subtotal, receipt.currency)} styles={styles} />
+        <DetailRow label="Tax"      value={formatCurrency(receipt.tax,      receipt.currency)} styles={styles} />
+        <DetailRow label="Total"    value={formatCurrency(receipt.total,    receipt.currency)} styles={styles} />
       </Card>
 
       {receipt.line_items?.length > 0 && (
@@ -152,7 +174,7 @@ export default function ReceiptDetailScreen() {
                 )}
               </View>
               {item.total_price != null && (
-                <Text style={styles.lineItemPrice}>{formatCurrency(item.total_price)}</Text>
+                <Text style={styles.lineItemPrice}>{formatCurrency(item.total_price, receipt.currency)}</Text>
               )}
             </View>
           ))}

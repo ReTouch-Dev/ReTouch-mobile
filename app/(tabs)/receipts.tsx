@@ -56,7 +56,7 @@ function ReceiptCard({ item }: { item: ReceiptListItem }) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const merchant = item.ocr?.merchant ?? 'Receipt';
-  const total = item.ocr?.total != null ? formatCurrency(item.ocr.total) : null;
+  const total = item.ocr?.total != null ? formatCurrency(item.ocr.total, item.ocr.currency) : null;
   const date = formatRelativeDate(item.ocr?.date ?? item.created_at);
   const isPending = item.upload_status !== 'completed' || item.ocr?.status === 'processing';
   const initial = getInitial(merchant, 'R');
@@ -162,6 +162,7 @@ export default function ReceiptsScreen() {
           ListEmptyComponent={<EmptyState icon="🧾" title="No receipts yet" subtitle="Tap Scan to add your first one" />}
           onEndReached={() => { if (data?.has_next) setPage((p) => p + 1); }}
           onEndReachedThreshold={0.4}
+          showsVerticalScrollIndicator={false}
         />
       )}
     </View>

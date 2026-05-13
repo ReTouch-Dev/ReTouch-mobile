@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
+  Animated,
   StyleSheet,
   Text,
   TextInput as RNTextInput,
@@ -21,18 +22,39 @@ interface InputProps extends Omit<RNTextInputProps, 'style'> {
   secureTextEntry?: boolean;
 }
 
-function createStyles(colors: Colors) {
+function createStyles(colors: Colors, focused: boolean, hasError: boolean) {
+  const borderColor = hasError
+    ? colors.error
+    : focused
+    ? colors.primary
+    : colors.border;
+
   return StyleSheet.create({
-    container:      { gap: spacing.xs },
-    label:          { fontSize: 12, fontWeight: '600', color: colors.text2, textTransform: 'uppercase', letterSpacing: 0.5 },
-    inputWrap:      { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, minHeight: 48 },
-    inputWrapError: { borderColor: colors.error },
-    input:          { flex: 1, paddingVertical: spacing.sm + 2, paddingHorizontal: spacing.lg, fontSize: 15, color: colors.text1 },
-    inputWithLeft:  { paddingLeft: spacing.xs },
-    leftIcon:       { paddingLeft: spacing.md },
-    rightIconBtn:   { paddingRight: spacing.md },
-    errorText:      { fontSize: 12, color: colors.error },
-    hintText:       { fontSize: 12, color: colors.text3 },
+    container:    { gap: 6 },
+    label:        { fontSize: 13, fontWeight: '600', color: focused ? colors.primary : colors.text2 },
+    inputWrap:    {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderWidth: focused ? 1.5 : 1,
+      borderColor,
+      borderRadius: radius.lg,
+      minHeight: 52,
+      // Subtle shadow on web when focused
+      ...(focused ? {
+        shadowColor: colors.primary,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
+        elevation: 2,
+      } : {}),
+    },
+    input:        { flex: 1, paddingVertical: spacing.md, paddingHorizontal: spacing.lg, fontSize: 15, color: colors.text1 },
+    inputWithLeft:{ paddingLeft: spacing.sm },
+    leftIcon:     { paddingLeft: spacing.md },
+    rightIconBtn: { paddingRight: spacing.md },
+    errorText:    { fontSize: 12, color: colors.error, marginTop: 2 },
+    hintText:     { fontSize: 12, color: colors.text3, marginTop: 2 },
   });
 }
 
@@ -44,34 +66,55 @@ export function Input({
   rightIcon,
   onRightIconPress,
   secureTextEntry,
+  onFocus,
+  onBlur,
   ...rest
 }: InputProps) {
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const [focused, setFocused] = useState(false);
   const [secure, setSecure] = useState(secureTextEntry ?? false);
   const hasError = Boolean(error);
+  const styles = useMemo(() => createStyles(colors, focused, hasError), [colors, focused, hasError]);
 
   return (
     <View style={styles.container}>
       {label && <Text style={styles.label}>{label}</Text>}
-      <View style={[styles.inputWrap, hasError && styles.inputWrapError]}>
+      <View style={styles.inputWrap}>
         {leftIcon && (
-          <Ionicons name={leftIcon} size={16} color={colors.text3} style={styles.leftIcon} />
+          <Ionicons
+            name={leftIcon}
+            size={17}
+            color={focused ? colors.primary : colors.text3}
+            style={styles.leftIcon}
+          />
         )}
         <RNTextInput
           style={[styles.input, leftIcon && styles.inputWithLeft]}
           placeholderTextColor={colors.text3}
           secureTextEntry={secure}
           autoCapitalize="none"
+          onFocus={(e) => { setFocused(true); onFocus?.(e); }}
+          onBlur={(e) => { setFocused(false); onBlur?.(e); }}
           {...rest}
         />
         {secureTextEntry ? (
-          <TouchableOpacity onPress={() => setSecure((s) => !s)} style={styles.rightIconBtn}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Ionicons name={secure ? 'eye-outline' : 'eye-off-outline'} size={18} color={colors.text3} />
+          <TouchableOpacity
+            onPress={() => setSecure((s) => !s)}
+            style={styles.rightIconBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons
+              name={secure ? 'eye-outline' : 'eye-off-outline'}
+              size={18}
+              color={focused ? colors.primary : colors.text3}
+            />
           </TouchableOpacity>
         ) : rightIcon ? (
-          <TouchableOpacity onPress={onRightIconPress} style={styles.rightIconBtn} disabled={!onRightIconPress}>
+          <TouchableOpacity
+            onPress={onRightIconPress}
+            style={styles.rightIconBtn}
+            disabled={!onRightIconPress}
+          >
             <Ionicons name={rightIcon} size={18} color={colors.text3} />
           </TouchableOpacity>
         ) : null}

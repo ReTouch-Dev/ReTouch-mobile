@@ -63,12 +63,19 @@ const MOCK_INSIGHTS = {
   ],
 };
 
+const MOCK_TRENDS = {
+  user_id: 1,
+  interval: 'daily',
+  trends: [{ period: '2024-01-01', total_spent: 100, receipt_count: 1, average_transaction: 100 }],
+};
+
 beforeEach(() => {
   jest.clearAllMocks();
   mockAnalyticsApi.summary.mockResolvedValue(MOCK_SUMMARY);
   mockAnalyticsApi.topMerchants.mockResolvedValue(MOCK_MERCHANTS);
   mockAnalyticsApi.categoryBreakdown.mockResolvedValue(MOCK_CATEGORIES);
   mockAnalyticsApi.insights.mockResolvedValue(MOCK_INSIGHTS);
+  mockAnalyticsApi.trendsForDays.mockResolvedValue(MOCK_TRENDS);
 });
 
 describe('AnalyticsScreen', () => {
@@ -80,12 +87,12 @@ describe('AnalyticsScreen', () => {
     expect(screen.getByText('90d')).toBeTruthy();
   });
 
-  it('renders summary card labels after data loads', async () => {
+  it('renders summary labels after data loads', async () => {
     render(<AnalyticsScreen />, { wrapper: makeWrapper() });
     await waitFor(() => {
       expect(screen.getByText('Total spent')).toBeTruthy();
       expect(screen.getByText('Transactions')).toBeTruthy();
-      expect(screen.getByText('Avg. spend')).toBeTruthy();
+      expect(screen.getByText('Avg. per receipt')).toBeTruthy();
     });
   });
 

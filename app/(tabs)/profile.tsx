@@ -1,7 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
+  Modal,
+  Platform,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -20,6 +23,8 @@ import { radius, shadow, spacing } from '../../src/theme/tokens';
 import { Logo } from '../../src/components/Logo';
 import { getInitial } from '../../src/utils/format';
 import { DEMO_MODE } from '../../src/lib/demo';
+import { download } from '../../src/api/client';
+import { CURRENCIES, usePreferencesStore } from '../../src/store/preferencesStore';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -56,6 +61,17 @@ function createStyles(colors: Colors) {
 
     version:         { textAlign: 'center', color: colors.text3, fontSize: 12 },
     versionWrap:     { alignItems: 'center', paddingTop: spacing['2xl'] },
+
+    // Currency picker modal
+    modalOverlay:    { flex: 1, backgroundColor: '#00000066', justifyContent: 'flex-end' },
+    modalSheet:      { backgroundColor: colors.bg, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, maxHeight: '70%', paddingBottom: spacing.xl },
+    modalHandle:     { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginTop: spacing.md, marginBottom: spacing.sm },
+    modalTitle:      { fontSize: 16, fontWeight: '700', color: colors.text1, paddingHorizontal: spacing.xl, paddingBottom: spacing.sm },
+    currencyRow:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.xl, paddingVertical: spacing.md, gap: spacing.md },
+    currencyCode:    { fontSize: 14, fontWeight: '700', color: colors.text1, width: 44 },
+    currencyName:    { flex: 1, fontSize: 14, color: colors.text2 },
+    currencyCheck:   {},
+    currencyDivider: { height: 1, backgroundColor: colors.divider, marginLeft: spacing.xl },
   });
 }
 
@@ -91,12 +107,32 @@ function MenuItem({ icon, label, value, danger, warning, onPress, loading, right
 
 export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
+  const { homeCurrency, fetch: fetchPrefs, setCurrency } = usePreferencesStore();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors, isDark, toggle: toggleTheme } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const [logoutLoading,  setLogoutLoading]  = useState(false);
-  const [confirming,     setConfirming]     = useState(false);
+  const [logoutLoading,    setLogoutLoading]    = useState(false);
+  const [confirming,       setConfirming]       = useState(false);
+  const [exporting,        setExporting]        = useState(false);
+  const [currencyPicker,   setCurrencyPicker]   = useState(false);
+  const [savingCurrency,   setSavingCurrency]   = useState(false);
+
+  useEffect(() => {
+    if (!DEMO_MODE) fetchPrefs();
+  }, []);
+
+  const selectCurrency = async (code: string) => {
+    setSavingCurrency(true);
+    setCurrencyPicker(false);
+    try {
+      await setCurrency(code);
+    } catch {
+      Alert.alert('Error', 'Could not update currency. Please try again.');
+    } finally {
+      setSavingCurrency(false);
+    }
+  };
 
   const initial = getInitial(user?.full_name ?? user?.email, '?');
   const memberSince = user?.id
@@ -113,15 +149,46 @@ export default function ProfileScreen() {
     }
   };
 
+  const triggerExport = async (format: 'json' | 'csv') => {
+    setExporting(true);
+    try {
+      const response = await download(`/api/mobile/receipts/export?format=${format}`);
+      const blob = await response.blob();
+
+      if (Platform.OS === 'web') {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `receipts.${format}`;
+        anchor.style.display = 'none';
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        setTimeout(() => URL.revokeObjectURL(url), 150);
+      } else {
+        Alert.alert('Export ready', 'Open the app in a browser to download your receipts file.');
+      }
+    } catch {
+      Alert.alert('Export failed', 'Could not export receipts. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const handleExport = () => {
     if (DEMO_MODE) {
       Alert.alert('Demo Mode', 'Data export is not available in demo mode.');
-    } else {
-      Alert.alert('Export Receipts', 'This will export all your receipts as a CSV file.', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Export', onPress: () => Alert.alert('Coming soon', 'Export feature is under development.') },
-      ]);
+      return;
     }
+    Alert.alert(
+      'Export Receipts',
+      'Choose a format',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'JSON', onPress: () => triggerExport('json') },
+        { text: 'CSV',  onPress: () => triggerExport('csv') },
+      ],
+    );
   };
 
   return (
@@ -175,13 +242,55 @@ export default function ProfileScreen() {
           }
         />
         <View style={styles.menuDivider} />
-        <MenuItem icon="cash-outline" label="Currency" value="HKD" />
+        <MenuItem
+          icon="cash-outline"
+          label="Currency"
+          value={savingCurrency ? '…' : homeCurrency}
+          onPress={() => !DEMO_MODE && setCurrencyPicker(true)}
+        />
       </Card>
+
+      {/* Currency picker bottom sheet */}
+      <Modal
+        visible={currencyPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setCurrencyPicker(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setCurrencyPicker(false)}
+        >
+          <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>Select Currency</Text>
+            <FlatList
+              data={CURRENCIES}
+              keyExtractor={(item) => item.code}
+              ItemSeparatorComponent={() => <View style={styles.currencyDivider} />}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.currencyRow}
+                  onPress={() => selectCurrency(item.code)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.currencyCode}>{item.code}</Text>
+                  <Text style={styles.currencyName}>{item.name}</Text>
+                  {item.code === homeCurrency && (
+                    <Ionicons name="checkmark" size={18} color={colors.primary} style={styles.currencyCheck} />
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Data */}
       <Text style={styles.sectionLabel}>Data</Text>
       <Card style={styles.menu} padding="none">
-        <MenuItem icon="download-outline" label="Export Receipts" onPress={handleExport} />
+        <MenuItem icon="download-outline" label="Export Receipts" onPress={handleExport} loading={exporting} />
         <View style={styles.menuDivider} />
         <MenuItem icon="shield-checkmark-outline" label="Privacy Policy" />
       </Card>

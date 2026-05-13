@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { receiptsApi } from '../../src/api/receipts';
@@ -63,7 +63,7 @@ export default function CaptureScreen() {
   const pickFromGallery = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') { Alert.alert('Permission needed', 'Please allow access to your photo library.'); return; }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.9 });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.9 });
     if (!result.canceled && result.assets[0]) { setImageUri(result.assets[0].uri); setState('idle'); }
   };
 
@@ -82,6 +82,11 @@ export default function CaptureScreen() {
       const mimeType = imageUri.endsWith('.png') ? 'image/png' : 'image/jpeg';
       const response = await receiptsApi.upload(imageUri, mimeType);
       await queryClient.invalidateQueries({ queryKey: ['receipts'] });
+      // Analytics counts change immediately when a receipt is added
+      await queryClient.invalidateQueries({ queryKey: ['a-sum'] });
+      await queryClient.invalidateQueries({ queryKey: ['a-mer'] });
+      await queryClient.invalidateQueries({ queryKey: ['a-cat'] });
+      await queryClient.invalidateQueries({ queryKey: ['a-trd'] });
       setState('success');
       setTimeout(() => router.push(`/receipt/${response.receipt_id}`), 800);
     } catch (err) {
@@ -91,6 +96,13 @@ export default function CaptureScreen() {
   };
 
   const reset = () => { setImageUri(null); setState('idle'); setErrorMsg(''); };
+
+  // Clear stale upload state every time the tab comes back into focus
+  useFocusEffect(
+    useCallback(() => {
+      reset();
+    }, [])
+  );
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>

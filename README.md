@@ -99,7 +99,7 @@ npm run typecheck     # tsc --noEmit
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `EXPO_PUBLIC_API_BASE_URL` | `http://localhost:5000` | Flask API base URL |
-| `EXPO_PUBLIC_ANALYTICS_BASE_URL` | `http://localhost:5002/analytics` | Analytics microservice base URL |
+| `EXPO_PUBLIC_ANALYTICS_BASE_URL` | `http://localhost:5000/analytics` | Analytics endpoint (same server as main API) |
 | `EXPO_PUBLIC_DEMO_MODE` | `false` | Set to `true` for offline demo with fixture data |
 
 All `EXPO_PUBLIC_*` vars are inlined at build time by Metro bundler.
@@ -113,20 +113,23 @@ EXPO_PUBLIC_API_BASE_URL=http://192.168.x.x:5000
 
 ## Running with the Full Stack
 
+The backend lives in the `server/` directory of this repo — no external `ReTouch-server` needed.
+
 ```bash
-# Terminal 1 — API server (ReTouch-server)
-cd ../ReTouch-server/backend
-source .venv/bin/activate
-STORAGE_BACKEND=local flask run -p 5000
+# Terminal 1 — Backend (auth + receipts + analytics on port 5000)
+cd server
+python -m venv .venv && source .venv/bin/activate   # first time only
+pip install -r requirements.txt                       # first time only
+cp .env.example .env                                  # first time only — edit to add GEMINI_API_KEY
+python app.py
 
-# Terminal 2 — Analytics service (ReTouch-server)
-cd ../ReTouch-server/analytics
-source ../.venv/bin/activate
-flask run -p 5002
-
-# Terminal 3 — Mobile app
+# Terminal 2 — Mobile app
+cp .env.example .env   # first time only (already points to localhost:5000)
 npm start
 ```
+
+> **OCR without a Gemini key:** Uploads still work. The receipt will show `ocr_status: processing`
+> indefinitely rather than extracting fields. Analytics and search work once totals are present.
 
 ---
 
