@@ -13,17 +13,21 @@ def _run_migrations(db: SQLAlchemy) -> None:
     engine = db.engine
     with engine.connect() as conn:
         from sqlalchemy import text, inspect
-        inspector = inspect(engine)
+        try:
+            inspector = inspect(engine)
 
-        user_cols = {c["name"] for c in inspector.get_columns("users")}
-        if "home_currency" not in user_cols:
-            conn.execute(text("ALTER TABLE users ADD COLUMN home_currency VARCHAR(3) NOT NULL DEFAULT 'HKD'"))
+            user_cols = {c["name"] for c in inspector.get_columns("users")}
+            if "home_currency" not in user_cols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN home_currency VARCHAR(3) NOT NULL DEFAULT 'HKD'"))
 
-        rd_cols = {c["name"] for c in inspector.get_columns("receipt_data")}
-        if "currency" not in rd_cols:
-            conn.execute(text("ALTER TABLE receipt_data ADD COLUMN currency VARCHAR(3)"))
+            rd_cols = {c["name"] for c in inspector.get_columns("receipt_data")}
+            if "currency" not in rd_cols:
+                conn.execute(text("ALTER TABLE receipt_data ADD COLUMN currency VARCHAR(3)"))
 
-        conn.commit()
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
 
 
 def init_db(app) -> None:

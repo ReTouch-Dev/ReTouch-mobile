@@ -24,6 +24,7 @@ from urllib import request as urlrequest
 from sqlalchemy import Date, cast, func
 from sqlalchemy.orm import Session
 
+from database import db
 from exchange_rates import convert, get_rate
 from models import Receipt, ReceiptData, UploadStatus
 
@@ -43,7 +44,7 @@ COMPLETED = ("completed",)
 
 def _date_expr(session: Session):
     """Return a SQLAlchemy expression for the effective transaction date."""
-    dialect = session.bind.dialect.name if session.bind else "sqlite"
+    dialect = db.engine.dialect.name
     if dialect == "sqlite":
         return func.coalesce(ReceiptData.transaction_date, func.date(Receipt.created_at))
     return func.coalesce(ReceiptData.transaction_date, cast(Receipt.created_at, Date))
@@ -101,7 +102,7 @@ def spending_summary(
 
     # Pull home_currency once for NULL-currency fallback
     from models import User
-    user = session.query(User).get(user_id)
+    user = session.get(User, user_id)
     home = user.home_currency if user else "HKD"
 
     total_spent = 0.0
@@ -144,10 +145,10 @@ def spending_trends(
     window_days = periods * (1 if interval == "daily" else 7 if interval == "weekly" else 30)
 
     from models import User
-    user = session.query(User).get(user_id)
+    user = session.get(User, user_id)
     home = user.home_currency if user else "HKD"
 
-    dialect = session.bind.dialect.name if session.bind else "sqlite"
+    dialect = db.engine.dialect.name
     # Group bars by the effective display date (transaction_date or upload date)
     d = _date_expr(session)
 
@@ -208,7 +209,7 @@ def top_merchants(
     display_currency: str = "HKD",
 ) -> dict:
     from models import User
-    user = session.query(User).get(user_id)
+    user = session.get(User, user_id)
     home = user.home_currency if user else "HKD"
 
     rows = (
@@ -278,7 +279,7 @@ def category_breakdown(
     display_currency: str = "HKD",
 ) -> dict:
     from models import User
-    user = session.query(User).get(user_id)
+    user = session.get(User, user_id)
     home = user.home_currency if user else "HKD"
 
     rows = _base_q(session, user_id, days).with_entities(Receipt, ReceiptData).all()

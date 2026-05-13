@@ -22,12 +22,19 @@ from models import User
 analytics_bp = Blueprint("analytics", __name__, url_prefix="/analytics")
 
 
+def _int_param(name: str, default: int) -> int:
+    try:
+        return int(request.args.get(name, default))
+    except (ValueError, TypeError):
+        return default
+
+
 def _display_currency(user_id: int) -> str:
     """Resolve the display currency: ?display_currency param → user preference → 'HKD'."""
     param = (request.args.get("display_currency") or "").strip().upper()
     if param:
         return param
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     return user.home_currency if user else "HKD"
 
 
@@ -35,7 +42,7 @@ def _display_currency(user_id: int) -> str:
 @jwt_required()
 def spending_summary():
     user_id  = int(get_jwt_identity())
-    days     = int(request.args.get("days", 30))
+    days     = _int_param("days", 30)
     currency = _display_currency(user_id)
     result   = analytics.spending_summary(db.session, user_id, days, display_currency=currency)
     return jsonify(result)
@@ -46,7 +53,7 @@ def spending_summary():
 def spending_trends():
     user_id  = int(get_jwt_identity())
     interval = request.args.get("interval", "daily")
-    periods  = int(request.args.get("periods", 30))
+    periods  = _int_param("periods", 30)
     currency = _display_currency(user_id)
     result   = analytics.spending_trends(db.session, user_id, interval, periods, display_currency=currency)
     return jsonify(result)
@@ -56,8 +63,8 @@ def spending_trends():
 @jwt_required()
 def top_merchants():
     user_id  = int(get_jwt_identity())
-    days     = int(request.args.get("days", 30))
-    limit    = int(request.args.get("limit", 10))
+    days     = _int_param("days", 30)
+    limit    = _int_param("limit", 10)
     currency = _display_currency(user_id)
     result   = analytics.top_merchants(db.session, user_id, days, limit, display_currency=currency)
     return jsonify(result)
@@ -67,7 +74,7 @@ def top_merchants():
 @jwt_required()
 def category_breakdown():
     user_id  = int(get_jwt_identity())
-    days     = int(request.args.get("days", 30))
+    days     = _int_param("days", 30)
     currency = _display_currency(user_id)
     result   = analytics.category_breakdown(db.session, user_id, days, display_currency=currency)
     return jsonify(result)
@@ -77,7 +84,7 @@ def category_breakdown():
 @jwt_required()
 def ai_insights():
     user_id  = int(get_jwt_identity())
-    days     = int(request.args.get("days", 30))
+    days     = _int_param("days", 30)
     currency = _display_currency(user_id)
     result   = analytics.ai_insights(db.session, user_id, days, display_currency=currency)
     return jsonify(result)

@@ -170,8 +170,14 @@ def upload_receipt():
 @jwt_required()
 def list_receipts():
     user_id = int(get_jwt_identity())
-    page    = max(1, int(request.args.get("page", 1)))
-    limit   = min(200, max(1, int(request.args.get("limit", 50))))
+    try:
+        page  = max(1, int(request.args.get("page", 1)))
+    except (ValueError, TypeError):
+        page  = 1
+    try:
+        limit = min(200, max(1, int(request.args.get("limit", 50))))
+    except (ValueError, TypeError):
+        limit = 50
     search  = request.args.get("search", "").strip()
     offset  = (page - 1) * limit
 

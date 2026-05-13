@@ -62,4 +62,4 @@ app = create_app()
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     # use_reloader=False: the reloader forks a child process which kills background OCR threads
-    app.run(host="0.0.0.0", port=port, debug=os.getenv("FLASK_DEBUG", "true").lower() == "true", use_reloader=False)
+    app.run(host="0.0.0.0", port=port, debug=os.getenv("FLASK_DEBUG", "false").lower() == "true", use_reloader=False)

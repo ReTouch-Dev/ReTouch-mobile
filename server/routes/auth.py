@@ -74,7 +74,7 @@ def email_availability():
 @jwt_required(refresh=True)
 def refresh():
     user_id = int(get_jwt_identity())
-    user    = User.query.get(user_id)
+    user    = db.session.get(User, user_id)
     if not user or not user.is_active:
         return _err("User not found", 401)
     return jsonify({"access_token": create_access_token(identity=str(user_id))})
@@ -83,7 +83,7 @@ def refresh():
 @auth_bp.get("/me")
 @jwt_required()
 def me():
-    user = User.query.get(int(get_jwt_identity()))
+    user = db.session.get(User, int(get_jwt_identity()))
     if not user:
         return _err("User not found", 401)
     return jsonify(user.to_dict())
@@ -98,7 +98,7 @@ def logout():
 @auth_bp.get("/preferences")
 @jwt_required()
 def get_preferences():
-    user = User.query.get(int(get_jwt_identity()))
+    user = db.session.get(User, int(get_jwt_identity()))
     if not user:
         return _err("User not found", 401)
     return jsonify({"home_currency": user.home_currency})
@@ -118,7 +118,7 @@ def update_preferences():
             400,
         )
 
-    user = User.query.get(int(get_jwt_identity()))
+    user = db.session.get(User, int(get_jwt_identity()))
     if not user:
         return _err("User not found", 401)
 
@@ -137,7 +137,7 @@ def change_password():
     if len(new_pw) < 8:
         return _err("New password must be at least 8 characters", 400)
 
-    user = User.query.get(int(get_jwt_identity()))
+    user = db.session.get(User, int(get_jwt_identity()))
     if not user or not user.check_password(current_pw):
         return _err("Current password is incorrect", 401)
 
