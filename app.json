@@ -28,7 +28,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#F0F9FF"
+        "backgroundColor": "#FFFFFF"
       },
       "package": "com.retouch.mobile",
       "versionCode": 1,
